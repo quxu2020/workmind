@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no,viewport-fit=cover">
 <title>记事本</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -189,32 +189,44 @@ body{
 .mobile-tabs{display:none;}
 
 @media(max-width:768px){
+  body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);}
+  .topbar{height:48px;padding:0 10px;}
+  .topbar .back-btn{width:36px;height:36px;font-size:20px;border-radius:8px;}
+  .topbar .btn{font-size:12px;padding:7px 12px;border-radius:8px;}
+  .topbar .title{font-size:14px;}
   .note-list{display:none;}
   .note-list.mobile-show{
-    display:flex;position:fixed;top:50px;left:0;bottom:0;width:260px;
+    display:flex;position:fixed;top:48px;left:0;bottom:0;width:280px;
     z-index:50;background:#0f0f1a;border-right:1px solid rgba(99,102,241,.2);
+    padding-bottom:env(safe-area-inset-bottom);
   }
+  .note-list-header button{width:32px;height:32px;border-radius:8px;font-size:18px;}
+  .note-item{padding:12px 14px;}
+  .note-item .ni-del{width:28px;height:28px;display:flex;opacity:.5;}
   .editor-area{flex-direction:column;}
   .preview-area{display:none;}
   .preview-area.mobile-show{display:block;flex:1;}
   .md-editor{border-right:none;}
   .md-editor.mobile-hide{display:none;}
+  .toolbar{padding:6px 8px;gap:2px;}
+  .toolbar button{width:34px;height:34px;border-radius:7px;font-size:14px;}
+  .toolbar .sep{margin:0 2px;}
+  .editor-wrap textarea{font-size:16px;padding:12px;}
   .mobile-tabs{
     display:flex;gap:0;padding:6px 12px;
     border-bottom:1px solid rgba(99,102,241,.08);flex-shrink:0;
   }
   .mobile-tabs button{
-    flex:1;padding:8px;border-radius:6px;
+    flex:1;padding:10px;border-radius:8px;
     background:transparent;border:1px solid transparent;
-    color:#64748b;font-size:13px;cursor:pointer;text-align:center;
+    color:#64748b;font-size:14px;cursor:pointer;text-align:center;
     transition:all .15s;
   }
   .mobile-tabs button.active{
     background:rgba(99,102,241,.15);color:#a5b4fc;
     border-color:rgba(99,102,241,.25);
   }
-  .topbar .btn{font-size:12px;padding:5px 10px;}
-  .topbar .title{font-size:14px;}
+  .toast{bottom:30px;padding:8px 18px;font-size:12px;}
 }
 
 /* 空状态 */

@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes, viewport-fit=cover">
 <title>手机矩阵思维导图</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -233,29 +233,65 @@ svg#svg:active{cursor:grabbing;}
 
 @keyframes pulse{0%,100%{opacity:0.6}50%{opacity:1}}
 
+/* 移动端适配 */
 @media(max-width:768px){
-  .topbar{height:44px;padding:0 8px;gap:3px;}
-  .topbar-title{font-size:12px;}
-  .btn{padding:5px 9px;font-size:11px;border-radius:12px;}
-  .doc-box{border-radius:12px;height:min(90vh,600px);}
+  body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);}
+  .topbar{height:44px;padding:0 6px;gap:2px;}
+  .topbar-title{font-size:12px;max-width:80px;overflow:hidden;text-overflow:ellipsis;}
+  .topbar-hint{display:none;}
+  .btn{padding:5px 8px;font-size:10px;border-radius:10px;}
+  #resetBtn{display:none;}
+  #editBtn{display:none;}
+  #syncBtn{font-size:10px;padding:5px 8px;}
+  
+  /* 文档弹窗 - 全屏移动端 */
+  .doc-box{width:100vw;height:100vh;border-radius:0;max-height:100vh;animation:none;}
+  .doc-box .btn-doc-save,.doc-box .btn-doc-cancel{font-size:14px;padding:10px 24px;}
+  .doc-head{padding:8px 12px;}
+  .doc-head .ttl{font-size:13px;}
+  .mode-btn{padding:5px 12px;font-size:12px;border-radius:8px;}
+  .doc-x{width:32px;height:32px;font-size:17px;}
   .doc-body{flex-direction:column;}
   .doc-edit{border-right:none;border-bottom:1px solid rgba(99,102,241,0.2);flex:0 0 45%;}
-  .doc-preview{flex:1;font-size:13px;}
-  .doc-textarea{font-size:14px;}
-  .doc-preview h1{font-size:17px;}
-  .doc-preview h2{font-size:14px;}
-  .prop-box{border-radius:12px;max-height:75vh;}
+  .doc-preview{flex:1;font-size:13px;padding:12px 14px;}
+  .doc-textarea{font-size:16px;padding:10px 12px;}
+  .doc-toolbar{padding:4px 6px;gap:1px;}
+  .doc-toolbar button{padding:4px 7px;font-size:11px;border-radius:5px;}
+  .doc-foot{padding:6px 12px;}
+  
+  /* 属性弹窗 - 底部弹出 */
+  .prop-box{width:100vw;max-height:55vh;border-radius:16px 16px 0 0;position:fixed;bottom:0;left:0;animation:slideUpProp .25s ease;}
+  @keyframes slideUpProp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  @keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .prop-head{padding:10px 14px;}
+  .prop-body{padding:12px 14px;}
   .prop-body input{font-size:16px;padding:12px 14px;}
-  #panel{width:280px;right:-280px;top:44px;}
-  #syncPanel{width:280px;right:-280px;top:44px;}
-  #toast{bottom:20px;font-size:12px;padding:8px 18px;}
+  .prop-foot{padding:8px 14px;padding-bottom:calc(8px + env(safe-area-inset-bottom));}
+  .prop-foot button{padding:12px 24px;font-size:15px;}
+  .swatch{width:36px;height:36px;}
+  
+  /* 侧边面板 - 全宽 */
+  #panel{width:100vw;right:-100vw;top:44px;border-radius:0;border-left:none;}
+  #panel.open{right:0;}
+  #panel h2{padding:12px 16px 8px;font-size:15px;}
+  .node-item{padding:12px 16px;font-size:14px;}
+  .act-btn{width:calc(100%-32px);margin:8px 16px 5px;padding:12px;font-size:14px;border-radius:12px;}
+  #syncPanel{width:100vw;right:-100vw;top:44px;}
+  #syncPanel.open{right:0;}
+  #syncPanel h3{font-size:13px;}
+  #syncPanel p{font-size:12px;}
+  .sync-btn{padding:12px;font-size:14px;border-radius:12px;}
+  
+  #toast{bottom:30px;font-size:12px;padding:8px 18px;}
+  #tip{display:none;}
 }
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <div class="topbar-title">手机矩阵 Mind Map</div>
+  <button class="btn" onclick="location.href='/'" title="返回桌面" style="padding:4px 10px;font-size:14px;">◂</button>
+  <div class="topbar-title">手机矩阵</div>
   <span id="cloudDot" style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0;animation:pulse 2s infinite;" title="云端状态"></span>
   <span id="cloudLabel" style="font-size:10px;color:#ef4444;">离线</span>
   <div class="topbar-hint" id="hint">单击编辑文档 · 双击编辑属性 · 拖拽移动 · 双指缩放</div>

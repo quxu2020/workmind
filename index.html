@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no,viewport-fit=cover">
 <title>我的工作台</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -128,17 +128,34 @@ body{
 }
 .bottom-dot.active{background:#6366f1;width:24px;border-radius:4px;}
 
+/* 移动端适配 */
 @media(min-width:768px){
   .app-grid{justify-content:flex-start;padding-left:40px;}
   .top-area{padding-top:20px;}
   .clock{font-size:48px;}
 }
+@media(max-width:768px){
+  body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);}
+  .top-area{padding:20px 20px 12px;}
+  .clock{font-size:52px;}
+  .date-row{font-size:14px;}
+  .app-grid{gap:22px 28px;padding:20px 16px 70px;}
+  .app-item{width:76px;}
+  .app-icon{width:62px;height:62px;font-size:30px;border-radius:15px;}
+  .app-label{font-size:11px;max-width:76px;}
+  .app-label{-webkit-tap-highlight-color:transparent;}
+  .reminders-widget{margin:0 12px 14px;padding:12px 14px;border-radius:14px;max-height:160px;}
+  .rem-text{font-size:12px;}
+  .rem-close{width:28px;height:28px;font-size:18px;}
+  .bottom-bar{height:50px;padding-bottom:env(safe-area-inset-bottom,8px);}
+}
 @media(max-width:380px){
-  .clock{font-size:48px;}
-  .app-grid{gap:16px 16px;padding:20px 12px 50px;}
-  .app-icon{width:56px;height:56px;font-size:28px;border-radius:14px;}
-  .app-item{width:64px;}
-  .app-label{font-size:11px;max-width:64px;}
+  .clock{font-size:42px;}
+  .date-row{font-size:12px;}
+  .app-grid{gap:18px 18px;padding:16px 10px 60px;}
+  .app-item{width:68px;}
+  .app-icon{width:54px;height:54px;font-size:26px;border-radius:13px;}
+  .app-label{font-size:10px;max-width:68px;}
 }
 </style>
 </head>
