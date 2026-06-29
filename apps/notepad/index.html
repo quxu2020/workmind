@@ -334,30 +334,6 @@ function setCloudStatus(s){
   dot.title="云端: "+(s==="online"?"已同步":s==="syncing"?"同步中":"离线");
 }
 
-function pushNotesToCloud(cb){
-  setCloudStatus("syncing");
-  // 读取当前云端的提醒部分（避免覆盖）
-  fetch(JSONBIN_USER_URL+"/latest",{
-    method:"GET",headers:{"X-Master-Key":JSONBIN_USER_KEY}
-  }).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(existing){
-    var cloudRem=[];
-    if(existing&&existing.record)cloudRem=existing.record.reminders||[];
-    var data={notes:notes,reminders:cloudRem,updatedAt:Date.now()};
-    return fetch(JSONBIN_USER_URL,{
-      method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY,"X-Bin-Versioning":"false"},
-      body:JSON.stringify(data)
-    });
-  }).then(function(r){
-    if(!r.ok)throw new Error("HTTP "+r.status);
-    setCloudStatus("online");
-    if(cb)cb(true);
-  }).catch(function(err){
-    console.log("Cloud push failed:",err);
-    setCloudStatus("offline");
-    if(cb)cb(false);
-  });
-}
-
 function pullNotesFromCloud(cb){
   setCloudStatus("syncing");
   fetch(JSONBIN_USER_URL+"/latest",{
@@ -386,11 +362,28 @@ function saveAllNotesLocal(){
 
 function saveAllNotes(){
   saveAllNotesLocal();
-  pushNotesToCloud();
+  pushAllToCloud();
+}
+
+// 推送笔记+提醒到云端（原子操作，避免互相覆盖）
+function pushAllToCloud(){
+  setCloudStatus("syncing");
+  // 收集当前所有提醒
+  var remList=[];
+  try{remList=JSON.parse(localStorage.getItem("reminders_v1")||"[]");}catch(e){}
+  var data={notes:notes,reminders:remList,updatedAt:Date.now()};
+  fetch(JSONBIN_USER_URL,{
+    method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY,"X-Bin-Versioning":"false"},
+    body:JSON.stringify(data)
+  }).then(function(r){
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    setCloudStatus("online");
+  }).catch(function(){setCloudStatus("offline");});
 }
 
 // 同步提醒到云端（保留笔记不覆盖）
 function syncRemindersToCloud(reminders){
+  setCloudStatus("syncing");
   fetch(JSONBIN_USER_URL+"/latest",{
     method:"GET",headers:{"X-Master-Key":JSONBIN_USER_KEY}
   }).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(existing){
@@ -401,7 +394,10 @@ function syncRemindersToCloud(reminders){
       method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY,"X-Bin-Versioning":"false"},
       body:JSON.stringify(data)
     });
-  }).catch(function(){});
+  }).then(function(r){
+    if(r&&!r.ok)throw new Error("HTTP "+r.status);
+    setCloudStatus("online");
+  }).catch(function(){setCloudStatus("offline");});
 }
 
 // ======== 加载（云端优先） ========
@@ -674,7 +670,7 @@ pullNotesFromCloud(function(cloudNotes){
   // 云端拉取完成后初始化界面
   initAfterCloudSync();
   // 如果云端没数据，把本地的推上去
-  if(!cloudNotes||cloudNotes.length===0){pushNotesToCloud();}
+  if(!cloudNotes||cloudNotes.length===0){pushAllToCloud();}
 });
 
 // 点击背景关闭移动端列表
