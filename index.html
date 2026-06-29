@@ -729,8 +729,8 @@ function showToast(msg,color){
   setTimeout(function(){t.style.opacity="0";setTimeout(function(){t.remove();},600);},3000);
 }
 
-// ======== 安全密码系统 ========
-var SEC_KEY="workmind_security_v1";
+// ======== 安全密码系统（双模式：手势+数字） ========
+var SEC_KEY="workmind_security_v2";
 var MAX_ATTEMPTS=5;
 var LOCKOUT_MS=30000;
 
@@ -740,6 +740,18 @@ function getSecurity(){
 
 function saveSecurity(obj){
   localStorage.setItem(SEC_KEY,JSON.stringify(obj));
+}
+
+// 迁移旧版数据
+function migrateSecurity(){
+  var sec=getSecurity();
+  if(sec.setup&&!sec.gestureHash&&!sec.pinHash){
+    // 旧格式：{mode,hash,setup,phone}
+    if(sec.mode==="gesture"){sec.gestureHash=sec.hash;}
+    else if(sec.mode==="pin"){sec.pinHash=sec.hash;}
+    delete sec.mode;delete sec.hash;
+    saveSecurity(sec);
+  }
 }
 
 function simpleHash(s){
@@ -966,11 +978,13 @@ function resetPinDots(dotsId){
 // ======== 锁屏逻辑 ========
 var lockState={
   mode:"gesture",
-  step:"idle",       // idle | setup1 | setup2 | unlock | locked
+  step:"idle",       // idle | setup_gesture1 | setup_gesture2 | setup_pin1 | setup_pin2 | unlock | locked
   firstInput:"",
   attempts:0,
   lockoutUntil:0,
-  gestureVersion:0   // 防止旧的回调触发
+  gestureVersion:0,  // 防止旧的回调触发
+  // 双密码设置进度：0=未开始 1=已设一种 2=两种都设了
+  setupProgress:0
 };
 
 var lockOverlay,lockTitle,lockSubtitle,lockError,lockIcon,lockConfirmBtn,lockResetBtn,lockAttempts;
@@ -1017,12 +1031,11 @@ function resetLockInputs(){
 
 // 检查是否需要解锁
 function checkLock(){
+  migrateSecurity();
   var sec=getSecurity();
   if(!sec.setup){
-    // 首次设置
     startSetup();
   }else{
-    // 需要解锁
     startUnlock();
   }
 }
@@ -1031,132 +1044,194 @@ function startSetup(){
   lockOverlay.classList.remove("hidden");
   lockIcon.textContent="🔐";
   lockTitle.textContent="设置安全密码";
-  lockSubtitle.textContent="请选择解锁方式并设置密码";
+  lockSubtitle.textContent="请选择一种方式开始设置（需设置两种）";
   lockError.textContent="";
   lockAttempts.textContent="";
-  lockState.step="setup1";
+  lockState.step="idle";
   lockState.firstInput="";
   lockState.attempts=0;
+  lockState.setupProgress=0;
   lockConfirmBtn.style.display="none";
   lockResetBtn.style.display="none";
 
   lockModeTabs.style.display="flex";
   setLockMode("gesture");
-  buildNumpad("numpad","pinDots",function(pin){
-    handlePinInput(pin);
-  });
-  initGestureCanvas("gestureCanvas",function(pattern){
-    handleGestureInput(pattern);
-  });
+  resetLockInputs();
+  buildNumpad("numpad","pinDots",function(pin){handlePinInput(pin);});
+  initGestureCanvas("gestureCanvas",function(pattern){handleGestureInput(pattern);});
 
-  // 模式切换
+  // 模式切换 - 设置阶段：重置到该模式的步骤1
   lockModeTabs.querySelectorAll("button").forEach(function(b){
-    b.onclick=function(){setLockMode(b.dataset.mode);resetLockInputs();lockError.textContent="";};
+    b.onclick=function(){
+      lockState.mode=b.dataset.mode;
+      setLockMode(b.dataset.mode);
+      resetLockInputs();
+      lockError.textContent="";
+      lockState.firstInput="";
+      if(lockState.step.indexOf("setup")===0){
+        // 正处于设置流程中，切换到对应模式的第一步
+        if(b.dataset.mode==="gesture"){lockState.step="setup_gesture1";initGestureCanvas("gestureCanvas",function(p){handleGestureInput(p);});}
+        else{lockState.step="setup_pin1";}
+      }
+    };
   });
+}
+
+function startSetupStep(mode){
+  lockState.mode=mode;
+  lockState.firstInput="";
+  setLockMode(mode);
+  resetLockInputs();
+  lockError.textContent="";
+  lockTitle.textContent=mode==="gesture"?"设置手势密码":"设置数字密码";
+  lockSubtitle.textContent=mode==="gesture"?"请绘制手势密码（至少3个点）":"请输入4位数字密码";
+  if(mode==="gesture"){
+    lockState.step="setup_gesture1";
+    initGestureCanvas("gestureCanvas",function(p){handleGestureInput(p);});
+  }else{
+    lockState.step="setup_pin1";
+    buildNumpad("numpad","pinDots",function(pin){handlePinInput(pin);});
+  }
 }
 
 function startUnlock(){
   lockOverlay.classList.remove("hidden");
   lockIcon.textContent="🔒";
   lockTitle.textContent="请输入密码解锁";
-  lockSubtitle.textContent="";
+  lockSubtitle.textContent="选择手势或数字密码解锁";
   lockError.textContent="";
   lockState.step="unlock";
   lockState.firstInput="";
+  lockState.attempts=0;
   lockConfirmBtn.style.display="none";
   lockResetBtn.style.display="none";
 
-  var sec=getSecurity();
-  lockState.mode=sec.mode||"gesture";
-  lockModeTabs.style.display="none";
-  setLockMode(lockState.mode);
-
+  lockModeTabs.style.display="flex";
+  lockState.mode="gesture";
+  setLockMode("gesture");
+  resetLockInputs();
   lockAttempts.textContent="";
 
-  buildNumpad("numpad","pinDots",function(pin){
-    handlePinInput(pin);
-  });
-  initGestureCanvas("gestureCanvas",function(pattern){
-    handleGestureInput(pattern);
+  buildNumpad("numpad","pinDots",function(pin){handlePinInput(pin);});
+  initGestureCanvas("gestureCanvas",function(pattern){handleGestureInput(pattern);});
+
+  // 解锁页允许切换模式
+  lockModeTabs.querySelectorAll("button").forEach(function(b){
+    b.onclick=function(){
+      lockState.mode=b.dataset.mode;
+      setLockMode(b.dataset.mode);
+      resetLockInputs();
+      lockError.textContent="";
+      lockAttempts.textContent="";
+      if(b.dataset.mode==="gesture")initGestureCanvas("gestureCanvas",function(p){handleGestureInput(p);});
+    };
   });
 }
 
 function handleGestureInput(pattern){
-  if(!pattern||pattern.length<3){
-    if(lockState.step==="unlock"){showLockError("请至少连接3个点");resetLockInputs();initGestureCanvas("gestureCanvas",handleGestureInput);}
+  // 解锁模式
+  if(lockState.step==="unlock"){
+    if(!pattern||pattern.length<3){showLockError("请至少连接3个点");resetLockInputs();initGestureCanvas("gestureCanvas",function(p){handleGestureInput(p);});return;}
+    var sec=getSecurity();
+    if(!sec.gestureHash){showLockError("尚未设置手势密码，请切换数字密码");resetLockInputs();initGestureCanvas("gestureCanvas",function(p){handleGestureInput(p);});return;}
+    if(simpleHash(pattern)===sec.gestureHash){unlockSuccess();}
+    else{unlockFail();}
     return;
   }
 
-  if(lockState.step==="setup1"){
+  // 手势设置第一步
+  if(lockState.step==="setup_gesture1"||lockState.step==="idle"){
+    if(!pattern||pattern.length<3){showLockError("请至少连接3个点");resetLockInputs();initGestureCanvas("gestureCanvas",function(p){handleGestureInput(p);});return;}
     lockState.firstInput=pattern;
-    lockState.step="setup2";
+    lockState.step="setup_gesture2";
     lockTitle.textContent="请再次绘制确认";
     lockSubtitle.textContent="";
     lockError.textContent="";
-    setTimeout(function(){resetGestureCanvas("gestureCanvas");initGestureCanvas("gestureCanvas",handleGestureInput);},500);
-  }else if(lockState.step==="setup2"){
+    setTimeout(function(){resetGestureCanvas("gestureCanvas");initGestureCanvas("gestureCanvas",function(p){handleGestureInput(p);});},500);
+  }
+  // 手势设置第二步
+  else if(lockState.step==="setup_gesture2"){
+    if(!pattern||pattern.length<3)return;
     if(pattern===lockState.firstInput){
-      // 一致，保存
       var sec=getSecurity();
-      sec.mode="gesture";
-      sec.hash=simpleHash(pattern);
+      sec.gestureHash=simpleHash(pattern);
       sec.setup=true;
       saveSecurity(sec);
-      lockOverlay.classList.add("hidden");
-      showToast("✅ 手势密码设置成功");
-      initApp();
+      lockState.setupProgress++;
+      lockState.step="idle";
+      // 检查是否还需要设置数字密码
+      if(!sec.pinHash){
+        showToast("✅ 手势密码设置成功！请继续设置数字密码","rgba(99,102,241,.9)");
+        lockTitle.textContent="请设置备用数字密码";
+        lockSubtitle.textContent="输入4位数字密码作为备选解锁方式";
+        startSetupStep("pin");
+      }else{
+        lockOverlay.classList.add("hidden");
+        showToast("✅ 手势密码设置成功");
+        initApp();
+      }
     }else{
       showLockError("两次手势不一致，请重新设置");
-      lockState.step="setup1";
-      lockState.firstInput="";
-      lockTitle.textContent="设置安全密码";
-      lockSubtitle.textContent="请绘制手势密码";
-      setTimeout(function(){resetGestureCanvas("gestureCanvas");initGestureCanvas("gestureCanvas",handleGestureInput);},300);
+      setTimeout(function(){resetGestureCanvas("gestureCanvas");startSetupStep("gesture");},300);
     }
-  }else if(lockState.step==="unlock"){
-    var sec=getSecurity();
-    if(simpleHash(pattern)===sec.hash){
-      unlockSuccess();
-    }else{
-      unlockFail();
-    }
+  }
+  // PIN设置第一步（idle模式下选了gesture）
+  else if(lockState.step==="setup_pin1"){
+    // 不该到这里，gesture handler在pin模式下
+    return;
+  }
+  // PIN设置第二步
+  else if(lockState.step==="setup_pin2"){
+    return;
   }
 }
 
 function handlePinInput(pin){
   if(!pin||pin.length<4)return;
 
-  if(lockState.step==="setup1"){
+  // 解锁模式
+  if(lockState.step==="unlock"){
+    var sec=getSecurity();
+    if(!sec.pinHash){showLockError("尚未设置数字密码，请切换手势密码");resetPinDots("pinDots");return;}
+    if(simpleHash(pin)===sec.pinHash){unlockSuccess();}
+    else{unlockFail();}
+    return;
+  }
+
+  // PIN设置第一步
+  if(lockState.step==="setup_pin1"||lockState.step==="idle"){
     lockState.firstInput=pin;
-    lockState.step="setup2";
+    lockState.step="setup_pin2";
     lockTitle.textContent="请再次输入确认";
     lockSubtitle.textContent="";
     lockError.textContent="";
     setTimeout(function(){resetPinDots("pinDots");},400);
-  }else if(lockState.step==="setup2"){
+  }
+  // PIN设置第二步
+  else if(lockState.step==="setup_pin2"){
     if(pin===lockState.firstInput){
       var sec=getSecurity();
-      sec.mode="pin";
-      sec.hash=simpleHash(pin);
+      sec.pinHash=simpleHash(pin);
       sec.setup=true;
       saveSecurity(sec);
-      lockOverlay.classList.add("hidden");
-      showToast("✅ 数字密码设置成功");
-      initApp();
+      lockState.setupProgress++;
+      lockState.step="idle";
+      // 检查是否还需要设置手势
+      if(!sec.gestureHash){
+        showToast("✅ 数字密码设置成功！请继续设置手势密码","rgba(99,102,241,.9)");
+        lockTitle.textContent="请设置备用手势密码";
+        lockSubtitle.textContent="绘制手势密码作为备选解锁方式（至少3个点）";
+        startSetupStep("gesture");
+      }else{
+        lockOverlay.classList.add("hidden");
+        showToast("✅ 数字密码设置成功");
+        initApp();
+      }
     }else{
       showLockError("两次密码不一致，请重新设置");
-      lockState.step="setup1";
       lockState.firstInput="";
-      lockTitle.textContent="设置安全密码";
-      lockSubtitle.textContent="请输入4位数字密码";
       setTimeout(function(){resetPinDots("pinDots");},300);
-    }
-  }else if(lockState.step==="unlock"){
-    var sec=getSecurity();
-    if(simpleHash(pin)===sec.hash){
-      unlockSuccess();
-    }else{
-      unlockFail();
+      startSetupStep("pin");
     }
   }
 }
@@ -1169,25 +1244,26 @@ function unlockSuccess(){
 
 function unlockFail(){
   lockState.attempts++;
+  lockAttempts.textContent="尝试次数: "+lockState.attempts+"/"+MAX_ATTEMPTS;
   if(lockState.attempts>=MAX_ATTEMPTS){
     lockState.lockoutUntil=Date.now()+LOCKOUT_MS;
     showLockError("密码错误次数过多，请30秒后再试");
     lockAttempts.textContent="已锁定，请等待...";
+    resetLockInputs();
     setTimeout(function(){
       lockState.attempts=0;
       lockState.lockoutUntil=0;
       lockError.textContent="";
       lockAttempts.textContent="";
       resetLockInputs();
-      if(lockState.mode==="gesture")initGestureCanvas("gestureCanvas",handleGestureInput);
+      if(lockState.mode==="gesture")initGestureCanvas("gestureCanvas",function(p){handleGestureInput(p);});
     },LOCKOUT_MS);
     return;
   }
   var remaining=MAX_ATTEMPTS-lockState.attempts;
   showLockError("密码错误，还剩 "+remaining+" 次机会");
-  lockAttempts.textContent="尝试次数: "+lockState.attempts+"/"+MAX_ATTEMPTS;
   resetLockInputs();
-  if(lockState.mode==="gesture")initGestureCanvas("gestureCanvas",handleGestureInput);
+  if(lockState.mode==="gesture")initGestureCanvas("gestureCanvas",function(p){handleGestureInput(p);});
 }
 
 // ======== 安全管理 ========
@@ -1255,27 +1331,19 @@ function initSecurityChange(){
   resetGestureCanvas("secGestureCanvas");
   resetPinDots("secPinDots");
 
-  // 手势二次确认处理器
-  function secGestureStep2(p2){
-    if(!p2||p2.length<3)return;
-    if(p2===newGesture){
-      saveNewPassword("gesture",simpleHash(p2));
-    }else{
-      document.getElementById("secError").textContent="两次不一致，请重新绘制";
-      setupStep=1;newGesture="";
-      setTimeout(function(){resetGestureCanvas("secGestureCanvas");bindSecGesture();},300);
-    }
-  }
-
-  function secGestureStep1(pattern){
-    if(!pattern||pattern.length<3)return;
-    newGesture=pattern;setupStep=2;
-    document.getElementById("secError").textContent="请再次绘制确认";
-    setTimeout(function(){resetGestureCanvas("secGestureCanvas");initGestureCanvas("secGestureCanvas",secGestureStep2);},500);
-  }
-
   function bindSecGesture(){
-    initGestureCanvas("secGestureCanvas",secGestureStep1);
+    initGestureCanvas("secGestureCanvas",function(pattern){
+      if(!pattern||pattern.length<3)return;
+      if(setupStep===1){
+        newGesture=pattern;setupStep=2;
+        document.getElementById("secError").textContent="请再次绘制确认";
+        setTimeout(function(){resetGestureCanvas("secGestureCanvas");initGestureCanvas("secGestureCanvas",function(p2){
+          if(!p2||p2.length<3)return;
+          if(p2===newGesture){saveNewPassword("gesture",simpleHash(p2));}
+          else{document.getElementById("secError").textContent="两次不一致，请重新绘制";setupStep=1;newGesture="";setTimeout(function(){resetGestureCanvas("secGestureCanvas");bindSecGesture();},300);}
+        });},500);
+      }
+    });
   }
 
   // 模式切换
@@ -1301,34 +1369,18 @@ function initSecurityChange(){
       document.getElementById("secError").textContent="请再次输入确认";
       setTimeout(function(){resetPinDots("secPinDots");},400);
     }else if(setupStep===2){
-      if(pin===newPin){
-        saveNewPassword("pin",simpleHash(pin));
-      }else{
-        document.getElementById("secError").textContent="两次不一致，请重新输入";
-        setupStep=1;newPin="";
-        setTimeout(function(){resetPinDots("secPinDots");},300);
-      }
+      if(pin===newPin){saveNewPassword("pin",simpleHash(pin));}
+      else{document.getElementById("secError").textContent="两次不一致，请重新输入";setupStep=1;newPin="";setTimeout(function(){resetPinDots("secPinDots");},300);}
     }
   });
 
   bindSecGesture();
-
-  document.getElementById("secSaveBtn").onclick=function(){
-    // 手动保存触发（仅在需要时显示）
-    if(secMode==="gesture"&&newGesture&&setupStep===2){
-      saveNewPassword("gesture",simpleHash(newGesture));
-    }else if(secMode==="pin"&&newPin&&setupStep===2){
-      saveNewPassword("pin",simpleHash(newPin));
-    }else{
-      document.getElementById("secError").textContent="请先完成密码设置";
-    }
-  };
 }
 
 function saveNewPassword(mode,hash){
   var sec=getSecurity();
-  sec.mode=mode;
-  sec.hash=hash;
+  if(mode==="gesture")sec.gestureHash=hash;
+  else if(mode==="pin")sec.pinHash=hash;
   saveSecurity(sec);
   document.getElementById("securityOverlay").classList.add("hidden");
   showToast("✅ 密码已更新");
