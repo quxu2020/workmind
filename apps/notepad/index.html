@@ -44,6 +44,16 @@ body{
 .topbar .btn:hover{background:rgba(99,102,241,.2);}
 .topbar .btn.save{background:rgba(99,102,241,.25);border-color:rgba(99,102,241,.5);}
 
+/* 云端状态 */
+.cloud-dot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+  background:#ef4444;box-shadow:0 0 6px rgba(239,68,68,.5);
+  transition:background .4s;margin-left:2px;
+}
+.cloud-dot.online{background:#10b981;box-shadow:0 0 6px rgba(16,185,129,.5);}
+.cloud-dot.syncing{background:#f59e0b;animation:cloudPulse 1s infinite;}
+@keyframes cloudPulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
 /* 主体布局 */
 .main{
   flex:1;display:flex;overflow:hidden;
@@ -246,6 +256,7 @@ body{
   <div class="spacer"></div>
   <button class="btn" id="listToggle" onclick="toggleList()">☰ 列表</button>
   <button class="btn save" onclick="saveNote()">💾 保存</button>
+  <div class="cloud-dot" id="cloudDot" title="云端"></div>
 </div>
 
 <!-- 移动端编辑/预览切换 -->
@@ -309,22 +320,117 @@ var currentId=null;
 var autoSaveTimer=null;
 var mobileTab="edit";
 
-// ======== 加载 ========
+// JSONBin 云端同步
+var JSONBIN_USER_ID="6a41defdda38895dfe0dcf54";
+var JSONBIN_USER_KEY="$2a$10$XjHR1OjZ73SbwYC4Xc8LTO5/Ym.afUvvaLO8K258IsXVUU.W5vbS.";
+var JSONBIN_USER_URL="https://api.jsonbin.io/v3/b/"+JSONBIN_USER_ID;
+
+function setCloudStatus(s){
+  var dot=document.getElementById("cloudDot");
+  if(!dot)return;
+  dot.classList.remove("online","syncing");
+  if(s==="online")dot.classList.add("online");
+  if(s==="syncing")dot.classList.add("syncing");
+  dot.title="云端: "+(s==="online"?"已同步":s==="syncing"?"同步中":"离线");
+}
+
+function pushNotesToCloud(cb){
+  setCloudStatus("syncing");
+  // 读取当前云端的提醒部分（避免覆盖）
+  fetch(JSONBIN_USER_URL+"/latest",{
+    method:"GET",headers:{"X-Master-Key":JSONBIN_USER_KEY}
+  }).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(existing){
+    var cloudRem=[];
+    if(existing&&existing.record)cloudRem=existing.record.reminders||[];
+    var data={notes:notes,reminders:cloudRem,updatedAt:Date.now()};
+    return fetch(JSONBIN_USER_URL,{
+      method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY,"X-Bin-Versioning":"false"},
+      body:JSON.stringify(data)
+    });
+  }).then(function(r){
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    setCloudStatus("online");
+    if(cb)cb(true);
+  }).catch(function(err){
+    console.log("Cloud push failed:",err);
+    setCloudStatus("offline");
+    if(cb)cb(false);
+  });
+}
+
+function pullNotesFromCloud(cb){
+  setCloudStatus("syncing");
+  fetch(JSONBIN_USER_URL+"/latest",{
+    method:"GET",headers:{"X-Master-Key":JSONBIN_USER_KEY}
+  }).then(function(r){
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    return r.json();
+  }).then(function(data){
+    var cloudNotes=data.record.notes||[];
+    if(cloudNotes.length>0){
+      // 云端有数据，优先用云端
+      notes=cloudNotes;
+      saveAllNotesLocal();
+    }
+    setCloudStatus("online");
+    if(cb)cb(cloudNotes);
+  }).catch(function(){
+    setCloudStatus("offline");
+    if(cb)cb(null);
+  });
+}
+
+function saveAllNotesLocal(){
+  localStorage.setItem(NOTES_KEY,JSON.stringify(notes));
+}
+
+function saveAllNotes(){
+  saveAllNotesLocal();
+  pushNotesToCloud();
+}
+
+// 同步提醒到云端（保留笔记不覆盖）
+function syncRemindersToCloud(reminders){
+  fetch(JSONBIN_USER_URL+"/latest",{
+    method:"GET",headers:{"X-Master-Key":JSONBIN_USER_KEY}
+  }).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(existing){
+    var cloudNotes=notes;
+    if(existing&&existing.record)cloudNotes=existing.record.notes||notes;
+    var data={notes:cloudNotes,reminders:reminders,updatedAt:Date.now()};
+    return fetch(JSONBIN_USER_URL,{
+      method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY,"X-Bin-Versioning":"false"},
+      body:JSON.stringify(data)
+    });
+  }).catch(function(){});
+}
+
+// ======== 加载（云端优先） ========
 function loadNotes(){
   try{
     var raw=localStorage.getItem(NOTES_KEY);
     notes=raw?JSON.parse(raw):[];
   }catch(e){notes=[];}
   if(notes.length===0){
-    notes.push({id:genId(),title:"欢迎使用记事本",content:"# 欢迎使用记事本\n\n这是一个简单的 Markdown 记事本。\n\n## 功能\n\n- **实时预览**：左边写，右边看\n- **自动保存**：无需手动操作\n- **多笔记管理**：左侧列表切换\n\n## 快捷操作\n\n点击上方工具栏快速插入格式。\n\n---\n\n祝你使用愉快！ 📝",time:Date.now()});
+    notes.push({id:genId(),title:"欢迎使用记事本",content:"# 欢迎使用记事本\n\n这是一个简单的 Markdown 记事本。\n\n## 功能\n\n- **实时预览**：左边写，右边看\n- **自动保存**：无需手动操作\n- **多笔记管理**：左侧列表切换\n- **云端同步**：笔记自动保存到云端\n\n## 快捷操作\n\n点击上方工具栏快速插入格式。\n\n---\n\n祝你使用愉快！ 📝",time:Date.now()});
   }
 }
 
-function genId(){return "n"+Date.now()+"_"+Math.random().toString(36).slice(2,8);}
-
-function saveAllNotes(){
-  localStorage.setItem(NOTES_KEY,JSON.stringify(notes));
+function initAfterCloudSync(){
+  if(notes.length===0){
+    notes.push({id:genId(),title:"欢迎使用记事本",content:"# 欢迎使用记事本\n\n这是一个简单的 Markdown 记事本。\n\n## 功能\n\n- **实时预览**：左边写，右边看\n- **自动保存**：无需手动操作\n- **多笔记管理**：左侧列表切换\n- **云端同步**：笔记自动保存到云端\n\n## 快捷操作\n\n点击上方工具栏快速插入格式。\n\n---\n\n祝你使用愉快！ 📝",time:Date.now()});
+    saveAllNotesLocal();
+  }
+  // 初始化界面
+  if(notes.length>0){
+    currentId=notes[0].id;
+    document.getElementById("editor").value=notes[0].content||"";
+    document.getElementById("noteTitle").textContent=notes[0].title||"未命名笔记";
+  }
+  updatePreview();
+  renderList();
 }
+
+function genId(){return "n"+Date.now()+"_"+Math.random().toString(36).slice(2,8);}
 
 // ======== 渲染列表 ========
 function renderList(){
@@ -528,6 +634,9 @@ function setReminder(){
   if(list.length>50)list=list.slice(0,50);
 
   localStorage.setItem(REM_KEY,JSON.stringify(list));
+
+  // 同步提醒到云端
+  syncRemindersToCloud(list);
   showToast("🔔 已添加提醒："+selected.slice(0,20)+(selected.length>20?"…":""));
   ta.focus();
 }
@@ -559,14 +668,14 @@ function showToast(msg){
   setTimeout(function(){t.classList.remove("show");},2000);
 }
 
-// ======== 启动 ========
-loadNotes();
-currentId=notes[0].id;
-var first=notes[0];
-document.getElementById("editor").value=first.content||"";
-document.getElementById("noteTitle").textContent=first.title||"未命名笔记";
-updatePreview();
-renderList();
+// ======== 启动（云端优先） ========
+loadNotes(); // 先加载本地数据作为兜底
+pullNotesFromCloud(function(cloudNotes){
+  // 云端拉取完成后初始化界面
+  initAfterCloudSync();
+  // 如果云端没数据，把本地的推上去
+  if(!cloudNotes||cloudNotes.length===0){pushNotesToCloud();}
+});
 
 // 点击背景关闭移动端列表
 document.addEventListener("click",function(e){

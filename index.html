@@ -57,6 +57,19 @@ body{
 }
 .icon-notepad{background:linear-gradient(135deg,#f59e0b,#d97706);}
 .icon-mindmap{background:linear-gradient(135deg,#6366f1,#4f46e5);}
+.icon-backup{background:linear-gradient(135deg,#10b981,#059669);}
+
+/* 云端状态 */
+.cloud-status{
+  position:absolute;top:4px;right:4px;
+  width:8px;height:8px;border-radius:50%;
+  background:#ef4444;box-shadow:0 0 6px rgba(239,68,68,.5);
+  transition:background .4s;
+}
+.cloud-status.online{background:#10b981;box-shadow:0 0 6px rgba(16,185,129,.5);}
+.cloud-status.syncing{background:#f59e0b;animation:pulse 1s infinite;}
+
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
 
 /* 提醒卡片 */
 .reminders-widget{
@@ -166,6 +179,7 @@ body{
   <div class="date-row">
     <span id="weekday">周六</span>
     <span id="dateStr">6月27日</span>
+    <div class="cloud-status" id="cloudDot" title="云端: 连接中..."></div>
   </div>
 </div>
 
@@ -192,7 +206,8 @@ updateClock();setInterval(updateClock,10000);
 
 var apps=[
   {id:"notepad",label:"记事本",icon:"📝",cls:"icon-notepad",url:"apps/notepad/index.html"},
-  {id:"mindmap",label:"手机矩阵",icon:"📱",cls:"icon-mindmap",url:"mindmap.html"}
+  {id:"mindmap",label:"手机矩阵",icon:"📱",cls:"icon-mindmap",url:"mindmap.html"},
+  {id:"backup",label:"打包备份",icon:"💾",cls:"icon-backup",url:"#",action:"downloadBackup"}
 ];
 
 var grid=document.getElementById("appGrid");
@@ -202,7 +217,11 @@ apps.forEach(function(app,i){
   var item=document.createElement("div");
   item.className="app-item";
   item.innerHTML='<div class="app-icon '+app.cls+'">'+app.icon+'</div><div class="app-label">'+app.label+'</div>';
-  item.onclick=function(){location.href=app.url;};
+  if(app.action){
+    item.onclick=window[app.action];
+  }else{
+    item.onclick=function(){location.href=app.url;};
+  }
   grid.appendChild(item);
 
   var dot=document.createElement("div");
@@ -210,8 +229,12 @@ apps.forEach(function(app,i){
   bar.appendChild(dot);
 });
 
-// ======== 提醒功能 ========
+// ======== 提醒功能 + 云端同步 ========
 var REM_KEY="reminders_v1";
+var JSONBIN_USER_ID="6a41defdda38895dfe0dcf54";
+var JSONBIN_USER_KEY="$2a$10$XjHR1OjZ73SbwYC4Xc8LTO5/Ym.afUvvaLO8K258IsXVUU.W5vbS.";
+var JSONBIN_USER_URL="https://api.jsonbin.io/v3/b/"+JSONBIN_USER_ID;
+var cloudUserData=null;
 
 function loadReminders(){
   try{return JSON.parse(localStorage.getItem(REM_KEY)||"[]");}
@@ -220,6 +243,65 @@ function loadReminders(){
 
 function saveReminders(list){
   localStorage.setItem(REM_KEY,JSON.stringify(list));
+  pushToCloud();
+}
+
+// 推送到云端
+function pushToCloud(){
+  var data={notes:[],reminders:loadReminders(),updatedAt:Date.now()};
+  if(cloudUserData&&cloudUserData.notes)data.notes=cloudUserData.notes;
+  fetch(JSONBIN_USER_URL,{
+    method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY,"X-Bin-Versioning":"false"},
+    body:JSON.stringify(data)
+  }).then(function(r){
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    return r.json();
+  }).then(function(){setCloudStatus("online");}).catch(function(){setCloudStatus("offline");});
+}
+
+// 从云端拉取
+function pullFromCloud(){
+  setCloudStatus("syncing");
+  fetch(JSONBIN_USER_URL+"/latest",{
+    method:"GET",headers:{"X-Master-Key":JSONBIN_USER_KEY}
+  }).then(function(r){
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    return r.json();
+  }).then(function(data){
+    cloudUserData=data.record;
+    // 合并提醒：云端+本地（去重）
+    var localRem=loadReminders();
+    var cloudRem=cloudUserData.reminders||[];
+    var merged=mergeReminders(localRem,cloudRem);
+    saveRemindersLocal(merged);
+    renderReminders();
+    setCloudStatus("online");
+  }).catch(function(){
+    setCloudStatus("offline");
+    renderReminders();
+  });
+}
+
+function mergeReminders(local,cloud){
+  var seen={},result=[];
+  (cloud.concat(local)).forEach(function(r){
+    var key=r.text+"|"+r.time;
+    if(!seen[key]){seen[key]=true;result.push(r);}
+  });
+  return result.slice(0,50);
+}
+
+function saveRemindersLocal(list){
+  localStorage.setItem(REM_KEY,JSON.stringify(list));
+}
+
+function setCloudStatus(s){
+  var dot=document.getElementById("cloudDot");
+  if(!dot)return;
+  dot.classList.remove("online","syncing");
+  if(s==="online")dot.classList.add("online");
+  if(s==="syncing")dot.classList.add("syncing");
+  dot.title="云端: "+(s==="online"?"已连接":s==="syncing"?"同步中":"离线");
 }
 
 function renderReminders(){
@@ -258,11 +340,31 @@ function dismissRem(idx){
   renderReminders();
 }
 
+// ======== 打包下载 ========
+function downloadBackup(){
+  showDownloadToast();
+  // 直接跳转 GitHub 仓库最新 zip（始终最新）
+  var a=document.createElement("a");
+  a.href="https://github.com/quxu2020/workmind/archive/refs/heads/main.zip";
+  a.download="workmind-backup.zip";
+  a.click();
+}
+
+function showDownloadToast(){
+  var t=document.createElement("div");
+  t.textContent="📦 正在下载备份包...";
+  t.style.cssText="position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(16,185,129,.9);color:#fff;padding:10px 24px;border-radius:24px;font-size:14px;z-index:200;pointer-events:none;transition:transform .3s ease,opacity .3s ease;";
+  document.body.appendChild(t);
+  setTimeout(function(){t.style.opacity="0";setTimeout(function(){t.remove();},600);},3000);
+}
+
+// ======== 初始化：云端拉取 ========
+pullFromCloud();
 renderReminders();
 
-// 从其他应用返回时自动刷新提醒
+// 从其他应用返回时自动从云端刷新
 document.addEventListener("visibilitychange",function(){
-  if(!document.hidden)renderReminders();
+  if(!document.hidden){pullFromCloud();}
 });
 </script>
 </body>
