@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中端机型 - 手机矩阵</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #0f1a0f; color: #e0f0e0; min-height: 100vh; }
+  .header { background: linear-gradient(135deg, #1a3e1a 0%, #1b6e2d 100%); padding: 32px 40px; border-bottom: 2px solid #3fff6c; display: flex; align-items: center; gap: 16px; }
+  .back-btn { background: rgba(63,255,108,0.15); border: 1px solid #3fff6c; color: #6bffab; padding: 8px 18px; border-radius: 20px; cursor: pointer; font-size: 14px; text-decoration: none; transition: all .2s; }
+  .back-btn:hover { background: rgba(63,255,108,0.3); }
+  h1 { font-size: 28px; font-weight: 700; color: #86efac; }
+  .badge { background: #16a34a; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; margin-left: 12px; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px; }
+  .section { background: rgba(255,255,255,0.04); border: 1px solid rgba(63,255,108,0.25); border-radius: 16px; padding: 28px; margin-bottom: 24px; }
+  .section h2 { font-size: 18px; color: #86efac; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .section h2::before { content: ''; display: inline-block; width: 4px; height: 18px; background: #22c55e; border-radius: 2px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+  .card { background: rgba(63,255,108,0.07); border: 1px solid rgba(63,255,108,0.25); border-radius: 12px; padding: 20px; text-align: center; transition: all .2s; }
+  .card:hover { transform: translateY(-4px); border-color: #22c55e; background: rgba(63,255,108,0.15); }
+  .card .icon { font-size: 32px; margin-bottom: 10px; }
+  .card .name { font-size: 15px; font-weight: 600; color: #e0f0e0; margin-bottom: 6px; }
+  .card .spec { font-size: 12px; color: #888; }
+  .tag { display: inline-block; background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.35); color: #86efac; padding: 3px 10px; border-radius: 8px; font-size: 12px; margin: 3px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: rgba(34,197,94,0.15); color: #86efac; padding: 12px 16px; text-align: left; font-size: 13px; }
+  td { padding: 12px 16px; font-size: 13px; color: #ccc; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  tr:hover td { background: rgba(34,197,94,0.07); }
+</style>
+</head>
+<body>
+<div class="header">
+  <a href="../index.html" class="back-btn">← 返回导图</a>
+  <h1>📲 中端机型</h1>
+  <span class="badge">性价比之选</span>
+</div>
+<div class="container">
+  <div class="section">
+    <h2>核心定位</h2>
+    <p style="color:#ccc;line-height:1.8;">中端机型是市场销量最大的细分区间，主打均衡体验与价格的高性价比，面向追求"够用且好用"的主流消费群体。价格区间通常在 2000–4000 元。</p>
+    <div style="margin-top:16px;">
+      <span class="tag">次旗舰SoC</span><span class="tag">大电池</span><span class="tag">快充</span><span class="tag">精致外观</span><span class="tag">OIS防抖</span>
+    </div>
+  </div>
+  <div class="section">
+    <h2>代表机型</h2>
+    <div class="grid">
+      <div class="card"><div class="icon">📱</div><div class="name">小米 14</div><div class="spec">骁龙8 Gen3 · 3299起</div></div>
+      <div class="card"><div class="icon">📱</div><div class="name">OPPO Reno 13 Pro</div><div class="spec">天玑9300+ · 2799起</div></div>
+      <div class="card"><div class="icon">📱</div><div class="name">vivo S20 Pro</div><div class="spec">天玑9300 · 2799起</div></div>
+      <div class="card"><div class="icon">📱</div><div class="name">一加 13R</div><div class="spec">骁龙8 Gen2 · 2499起</div></div>
+      <div class="card"><div class="icon">📱</div><div class="name">荣耀 200 Pro</div><div class="spec">骁龙8s Gen3 · 3299起</div></div>
+      <div class="card"><div class="icon">📱</div><div class="name">三星 Galaxy A55</div><div class="spec">Exynos 1480 · 2999起</div></div>
+    </div>
+  </div>
+  <div class="section">
+    <h2>核心参数对比</h2>
+    <table>
+      <thead><tr><th>参数</th><th>规格范围</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>处理器</td><td>骁龙8s/7+ Gen3 / 天玑9300</td><td>次旗舰级性能</td></tr>
+        <tr><td>屏幕</td><td>6.4"–6.8" OLED 60–120Hz</td><td>高刷 AMOLED 主流</td></tr>
+        <tr><td>内存</td><td>8–12 GB LPDDR5</td><td>满足日常多任务</td></tr>
+        <tr><td>存储</td><td>128–512 GB UFS 3.1</td><td>够用快速</td></tr>
+        <tr><td>主摄</td><td>50–100 MP</td><td>单主摄或双主摄</td></tr>
+        <tr><td>电池</td><td>4500–5500 mAh</td><td>67–100W 快充</td></tr>
+        <tr><td>价格</td><td>¥2000–¥4000</td><td>市场主销区间</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>

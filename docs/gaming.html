@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>游戏手机 - 手机矩阵</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #0a1a0a; color: #d0f0d0; min-height: 100vh; }
+  .header { background: linear-gradient(135deg, #1a0a0a 0%, #3e0a0a 100%); padding: 32px 40px; border-bottom: 2px solid #ff3f3f; display: flex; align-items: center; gap: 16px; }
+  .back-btn { background: rgba(255,63,63,0.12); border: 1px solid #ff3f3f; color: #ffa0a0; padding: 8px 18px; border-radius: 20px; cursor: pointer; font-size: 14px; text-decoration: none; transition: all .2s; }
+  .back-btn:hover { background: rgba(255,63,63,0.25); }
+  h1 { font-size: 28px; font-weight: 700; color: #ffa0a0; }
+  .badge { background: #dc2626; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; margin-left: 12px; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px; }
+  .section { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,63,63,0.25); border-radius: 16px; padding: 28px; margin-bottom: 24px; }
+  .section h2 { font-size: 18px; color: #ffa0a0; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .section h2::before { content: ''; display: inline-block; width: 4px; height: 18px; background: #ef4444; border-radius: 2px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+  .card { background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.25); border-radius: 12px; padding: 20px; text-align: center; transition: all .2s; }
+  .card:hover { transform: translateY(-4px); border-color: #ef4444; background: rgba(239,68,68,0.15); }
+  .card .icon { font-size: 32px; margin-bottom: 10px; }
+  .card .name { font-size: 15px; font-weight: 600; color: #f0d0d0; margin-bottom: 6px; }
+  .card .spec { font-size: 12px; color: #888; }
+  .tag { display: inline-block; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.35); color: #ffa0a0; padding: 3px 10px; border-radius: 8px; font-size: 12px; margin: 3px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: rgba(239,68,68,0.15); color: #ffa0a0; padding: 12px 16px; text-align: left; font-size: 13px; }
+  td { padding: 12px 16px; font-size: 13px; color: #ccc; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  tr:hover td { background: rgba(239,68,68,0.07); }
+  .specs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .spec-card { background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.25); border-radius: 10px; padding: 16px; text-align: center; }
+  .spec-card .s-label { font-size: 11px; color: #999; margin-bottom: 6px; }
+  .spec-card .s-value { font-size: 20px; font-weight: 700; color: #ffa0a0; }
+  .spec-card .s-unit { font-size: 11px; color: #777; }
+</style>
+</head>
+<body>
+<div class="header">
+  <a href="../index.html" class="back-btn">← 返回导图</a>
+  <h1>🎮 游戏手机</h1>
+  <span class="badge">性能怪兽</span>
+</div>
+<div class="container">
+  <div class="section">
+    <h2>核心定位</h2>
+    <p style="color:#ccc;line-height:1.8;">游戏手机专为移动游戏竞技玩家设计，极致堆料硬件散热、超高刷新率触控、肩键物理按键，搭配强劲性能释放策略，为重度玩家提供碾压级游戏体验。价格区间通常在 3000–6000 元。</p>
+    <div style="margin-top:16px;">
+      <span class="tag">航空级散热</span><span class="tag">144Hz+</span><span class="tag">肩键点触</span><span class="tag">独显芯片</span><span class="tag">旁路充电</span><span class="tag">RGB背板</span>
+    </div>
+  </div>
+  <div class="section">
+    <h2>游戏性能数据</h2>
+    <div class="specs-grid">
+      <div class="spec-card"><div class="s-label">最高屏幕刷新率</div><div class="s-value">165</div><div class="s-unit">Hz</div></div>
+      <div class="spec-card"><div class="s-label">最高触控采样率</div><div class="s-value">720</div><div class="s-unit">Hz 采样</div></div>
+      <div class="spec-card"><div class="s-label">冷却面积</div><div class="s-value">20000</div><div class="s-unit">mm² VC均热板</div></div>
+      <div class="spec-card"><div class="s-label">最大内存</div><div class="s-value">24</div><div class="s-unit">GB LPDDR5X</div></div>
+      <div class="spec-card"><div class="s-label">充电功率</div><div class="s-value">165</div><div class="s-unit">W 旁路快充</div></div>
+      <div class="spec-card"><div class="s-label">电池容量</div><div class="s-value">6000</div><div class="s-unit">mAh 大容量</div></div>
+    </div>
+  </div>
+  <div class="section">
+    <h2>代表机型</h2>
+    <div class="grid">
+      <div class="card"><div class="icon">🎮</div><div class="name">ROG Phone 8 Pro</div><div class="spec">骁龙8 Gen3 · AirTrigger</div></div>
+      <div class="card"><div class="icon">🎮</div><div class="name">红魔 10 Pro+</div><div class="spec">骁龙8 Elite · 165W</div></div>
+      <div class="card"><div class="icon">🎮</div><div class="name">黑鲨 6 Pro</div><div class="spec">骁龙8 Gen3 · 全感屏</div></div>
+      <div class="card"><div class="icon">🎮</div><div class="name">iQOO 13</div><div class="spec">骁龙8 Elite · Q2散热</div></div>
+      <div class="card"><div class="icon">🎮</div><div class="name">一加 Ace 5 Pro</div><div class="spec">骁龙8 Elite · 超感触控</div></div>
+      <div class="card"><div class="icon">🎮</div><div class="name">真我 GT7 Pro</div><div class="spec">骁龙8 Elite · 6100mAh</div></div>
+    </div>
+  </div>
+  <div class="section">
+    <h2>游戏专属功能对比</h2>
+    <table>
+      <thead><tr><th>品牌/机型</th><th>散热方案</th><th>物理键</th><th>刷新率</th></tr></thead>
+      <tbody>
+        <tr><td>ROG Phone 8 Pro</td><td>ROG 冰甲散热背夹</td><td>AirTrigger 5</td><td>165Hz</td></tr>
+        <tr><td>红魔 10 Pro+</td><td>风冷+液冷双散热</td><td>三档物理肩键</td><td>144Hz</td></tr>
+        <tr><td>iQOO 13</td><td>Q2 游戏散热系统</td><td>双侧压感键</td><td>144Hz</td></tr>
+        <tr><td>一加 Ace 5 Pro</td><td>天工散热系统 2.0</td><td>超感触控 2.0</td><td>144Hz</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>
