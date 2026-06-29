@@ -468,7 +468,7 @@ body{
     <div class="config-section">
       <div class="cs-title">💾 数据存储</div>
       <div class="config-store-item">
-        <span class="csi-type">JSONBin.io</span><span class="csi-desc">记事本笔记 + 桌面提醒</span>
+        <span class="csi-type">JSONBin.io</span><span class="csi-desc">记事本笔记 + 桌面提醒 + 安全密码</span>
         <br><span class="csi-id">Bin: 6a41defdda38895dfe0dcf54</span>
       </div>
       <div class="config-store-item">
@@ -480,7 +480,7 @@ body{
         <br><span class="csi-id">quxu2020/workmind</span>
       </div>
       <div class="config-store-item">
-        <span class="csi-type">本地</span><span class="csi-desc">安全密码（哈希存储，仅本设备）</span>
+        <span class="csi-type">本地</span><span class="csi-desc">安全密码本地缓存（哈希存储，云端同步备份）</span>
         <br><span class="csi-id">浏览器 localStorage</span>
       </div>
     </div>
@@ -624,9 +624,13 @@ function pushRemindersToCloud(reminders){
   fetch(JSONBIN_USER_URL+"/latest",{
     method:"GET",headers:{"X-Master-Key":JSONBIN_USER_KEY}
   }).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(existing){
-    var cloudNotes=[];
-    if(existing&&existing.record)cloudNotes=existing.record.notes||[];
-    var data={notes:cloudNotes,reminders:reminders,updatedAt:Date.now()};
+    var cloudNotes=[],cloudSecurity=null;
+    if(existing&&existing.record){
+      cloudNotes=existing.record.notes||[];
+      cloudSecurity=existing.record.security||null;
+    }
+    var sec=getSecurity();
+    var data={notes:cloudNotes,reminders:reminders,security:cloudSecurity||sec,updatedAt:Date.now()};
     return fetch(JSONBIN_USER_URL,{
       method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY,"X-Bin-Versioning":"false"},
       body:JSON.stringify(data)
@@ -649,6 +653,23 @@ function pullFromCloud(){
     var cloudRem=(data.record.reminders||[]);
     var merged=mergeReminders(localRem,cloudRem);
     saveRemindersLocal(merged);
+    // 同步安全密码
+    if(data.record.security&&data.record.security.setup){
+      var localSec=getSecurity();
+      var cloudSec=data.record.security;
+      // 如果本地没有密码但有云端的，用云端的
+      if(!localSec.setup||(!localSec.gestureHash&&!localSec.pinHash)){
+        localStorage.setItem(SEC_KEY,JSON.stringify(cloudSec));
+      }
+      // 如果本地有但云端更新（updatedAt更大），合并
+      else if(localSec.setup){
+        if(!localSec.gestureHash&&cloudSec.gestureHash)localSec.gestureHash=cloudSec.gestureHash;
+        if(!localSec.pinHash&&cloudSec.pinHash)localSec.pinHash=cloudSec.pinHash;
+        if(!localSec.phone&&cloudSec.phone)localSec.phone=cloudSec.phone;
+        if(!localSec.setup)localSec.setup=cloudSec.setup;
+        saveSecurity(localSec);
+      }
+    }
     renderReminders();
     setCloudStatus("online");
   }).catch(function(){
@@ -740,6 +761,28 @@ function getSecurity(){
 
 function saveSecurity(obj){
   localStorage.setItem(SEC_KEY,JSON.stringify(obj));
+  pushSecurityToCloud(obj);
+}
+
+function pushSecurityToCloud(sec){
+  setCloudStatus("syncing");
+  fetch(JSONBIN_USER_URL+"/latest",{
+    method:"GET",headers:{"X-Master-Key":JSONBIN_USER_KEY}
+  }).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(existing){
+    var cloudNotes=[],cloudReminders=[];
+    if(existing&&existing.record){
+      cloudNotes=existing.record.notes||[];
+      cloudReminders=existing.record.reminders||[];
+    }
+    var data={notes:cloudNotes,reminders:cloudReminders,security:sec,updatedAt:Date.now()};
+    return fetch(JSONBIN_USER_URL,{
+      method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY,"X-Bin-Versioning":"false"},
+      body:JSON.stringify(data)
+    });
+  }).then(function(r){
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    setCloudStatus("online");
+  }).catch(function(){setCloudStatus("offline");});
 }
 
 // 迁移旧版数据
