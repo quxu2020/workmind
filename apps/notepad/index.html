@@ -175,6 +175,30 @@ body{
   font-size:9px;background:rgba(99,102,241,.15);color:#818cf8;
   padding:1px 5px;border-radius:4px;
 }
+/* 拖拽相关 */
+.note-item{cursor:grab;}
+.note-item:active{cursor:grabbing;}
+.note-item.dragging{opacity:.35;transform:scale(.97);}
+.folder-item.drop-target{
+  background:rgba(99,102,241,.25)!important;
+  box-shadow:inset 0 0 0 2px rgba(129,140,248,.6);
+  color:#c4b5fd;
+}
+.folder-item.drop-invalid{background:rgba(239,68,68,.1)!important;}
+.folder-item.drag-active{
+  outline:2px dashed rgba(99,102,241,.25);
+  outline-offset:-2px;
+}
+/* 拖拽幽灵 */
+.drag-ghost{
+  position:fixed;z-index:500;pointer-events:none;
+  padding:8px 14px;border-radius:8px;
+  background:rgba(99,102,241,.85);color:#fff;
+  font-size:13px;white-space:nowrap;max-width:180px;
+  overflow:hidden;text-overflow:ellipsis;
+  box-shadow:0 8px 25px rgba(99,102,241,.4);
+  transform:translate(-50%,-50%);
+}
 .note-item .ni-actions{display:none;gap:2px;flex-shrink:0;}
 .note-item:hover .ni-actions{display:flex;}
 .ni-act-btn{
@@ -658,13 +682,17 @@ function getFolderCount(name){
 function renderFolders(){
   var el=document.getElementById("folderList");
   var allCount=notes.length;
-  var html='<div class="folder-item'+(currentFolder==="__all__"?" active":"")+'" onclick="selectFolder(\'__all__\')">'+
+  var html='<div class="folder-item'+(currentFolder==="__all__"?" active":"")+'" data-folder="__all__" '+
+    'ondragover="onFolderDragOver(event)" ondragleave="onFolderDragLeave(event)" ondrop="onFolderDrop(event,\'__all__\')" '+
+    'onclick="selectFolder(\'__all__\')">'+
     '<span class="fi-icon">📋</span>全部笔记<span class="fi-count">'+allCount+'</span></div>';
   folders.forEach(function(f){
     var count=getFolderCount(f);
     var active=currentFolder===f?" active":"";
     var showActions=f!=="默认";
-    html+='<div class="folder-item'+active+'" data-folder="'+escAttr(f)+'" onclick="selectFolder(\''+escAttr(f)+'\')">'+
+    html+='<div class="folder-item'+active+'" data-folder="'+escAttr(f)+'" '+
+      'ondragover="onFolderDragOver(event)" ondragleave="onFolderDragLeave(event)" ondrop="onFolderDrop(event,\''+escAttr(f)+'\')" '+
+      'onclick="selectFolder(\''+escAttr(f)+'\')">'+
       '<span class="fi-icon">📁</span>'+
       '<span class="fi-name">'+escHtml(f)+'</span>'+
       '<span class="fi-count">'+count+'</span>'+
@@ -796,11 +824,175 @@ function showMoveFolderModal(){
       saveAllNotes();
       if(currentFolder!=="__all__"&&sel!==currentFolder)selectFolder("__all__");
       else{renderFolders();renderList();}
-      closeModal();
-      showToast("✓ 已移动到「"+sel+"」");
-    }}]
+  closeModal();
+  showToast("✓ 已移动到「"+sel+"」");
+}}]
   );
 }
+
+// ======== 拖拽移动笔记到文件夹 ========
+var dragNoteId=null;
+
+function onNoteDragStart(e,noteId){
+  dragNoteId=noteId;
+  e.target.classList.add("dragging");
+  e.dataTransfer.effectAllowed="move";
+  e.dataTransfer.setData("text/plain",noteId);
+  // 标记所有文件夹为可拖放
+  var folders=document.querySelectorAll(".folder-item");
+  for(var i=0;i<folders.length;i++)folders[i].classList.add("drag-active");
+  // 设置拖拽图像
+  var note=notes.find(function(n){return n.id===noteId;});
+  var title=(note?note.title:"笔记")||"笔记";
+  var ghost=document.createElement("div");
+  ghost.className="drag-ghost";ghost.textContent=title.slice(0,25);
+  ghost.style.position="absolute";ghost.style.top="-999px";ghost.style.left="-999px";
+  document.body.appendChild(ghost);
+  e.dataTransfer.setDragImage(ghost,ghost.offsetWidth/2,ghost.offsetHeight/2);
+  setTimeout(function(){ghost.remove();},0);
+}
+
+function onNoteDragEnd(e){
+  dragNoteId=null;
+  e.target.classList.remove("dragging");
+  clearAllDragStates();
+}
+
+function onFolderDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect="move";
+  // 高亮当前文件夹
+  var el=e.currentTarget;
+  clearFolderHighlights();
+  el.classList.add("drop-target");
+}
+
+function onFolderDragLeave(e){
+  var el=e.currentTarget;
+  el.classList.remove("drop-target");
+}
+
+function clearFolderHighlights(){
+  var fs=document.querySelectorAll(".folder-item.drop-target");
+  for(var i=0;i<fs.length;i++)fs[i].classList.remove("drop-target");
+}
+
+function clearAllDragStates(){
+  clearFolderHighlights();
+  var fs=document.querySelectorAll(".folder-item.drag-active");
+  for(var i=0;i<fs.length;i++)fs[i].classList.remove("drag-active");
+}
+
+function onFolderDrop(e, folderName){
+  e.preventDefault();
+  clearAllDragStates();
+  if(!dragNoteId)return;
+  var note=notes.find(function(n){return n.id===dragNoteId;});
+  if(!note)return;
+  var targetFolder=folderName==="__all__"?"默认":folderName;
+  var oldFolder=note.folder||"默认";
+  if(oldFolder===targetFolder){dragNoteId=null;return;} // 同一文件夹不移动
+  note.folder=targetFolder;
+  saveAllNotes();
+  // 如果当前视图是具体文件夹且目标不同，切回全部
+  if(currentFolder!=="__all__"&&oldFolder===currentFolder&&targetFolder!==currentFolder){
+    selectFolder("__all__");
+  }else{
+    renderFolders();renderList();
+  }
+  showToast("✓ 已移至「"+targetFolder+"」");
+  dragNoteId=null;
+}
+
+// ======== 触屏拖拽（移动端） ========
+var touchGhost=null;
+var touchNoteId=null;
+var touchStartX=0,touchStartY=0;
+var touchMoved=false;
+
+function onNoteTouchStart(e, noteId){
+  // 忽略多指
+  if(e.touches.length!==1)return;
+  touchNoteId=noteId;
+  touchMoved=false;
+  touchStartX=e.touches[0].clientX;
+  touchStartY=e.touches[0].clientY;
+  // 标记文件夹
+  var fs=document.querySelectorAll(".folder-item");
+  for(var i=0;i<fs.length;i++)fs[i].classList.add("drag-active");
+  e.currentTarget.classList.add("dragging");
+  // 创建幽灵
+  touchGhost=document.createElement("div");
+  touchGhost.className="drag-ghost";
+  var note=notes.find(function(n){return n.id===noteId;});
+  touchGhost.textContent=(note?note.title:"笔记")||"笔记";
+  touchGhost.style.display="none";
+  document.body.appendChild(touchGhost);
+}
+
+function handleTouchMove(e){
+  if(!touchNoteId)return;
+  var dx=e.touches[0].clientX-touchStartX;
+  var dy=e.touches[0].clientY-touchStartY;
+  if(!touchMoved&&Math.abs(dx)<8&&Math.abs(dy)<8)return;
+  touchMoved=true;
+  e.preventDefault();
+  if(touchGhost){
+    touchGhost.style.display="block";
+    touchGhost.style.left=e.touches[0].clientX+"px";
+    touchGhost.style.top=e.touches[0].clientY+"px";
+  }
+  // 检测下方文件夹
+  var el=document.elementFromPoint(e.touches[0].clientX,e.touches[0].clientY);
+  clearFolderHighlights();
+  if(el){
+    var folderEl=el.closest(".folder-item");
+    if(folderEl)folderEl.classList.add("drop-target");
+  }
+}
+
+function handleTouchEnd(e){
+  if(!touchNoteId)return;
+  if(touchGhost){touchGhost.remove();touchGhost=null;}
+  // 恢复样式
+  var draggingNote=document.querySelector(".note-item.dragging");
+  if(draggingNote)draggingNote.classList.remove("dragging");
+  clearAllDragStates();
+
+  if(!touchMoved){touchNoteId=null;return;}
+
+  var el=document.elementFromPoint(
+    e.changedTouches[0]?e.changedTouches[0].clientX:0,
+    e.changedTouches[0]?e.changedTouches[0].clientY:0
+  );
+  if(el){
+    var folderEl=el.closest(".folder-item");
+    if(folderEl){
+      var folderName=folderEl.getAttribute("data-folder");
+      var note=notes.find(function(n){return n.id===touchNoteId;});
+      if(note){
+        var targetFolder=folderName==="__all__"?"默认":folderName;
+        var oldFolder=note.folder||"默认";
+        if(oldFolder!==targetFolder){
+          note.folder=targetFolder;
+          saveAllNotes();
+          if(currentFolder!=="__all__"&&oldFolder===currentFolder&&targetFolder!==currentFolder){
+            selectFolder("__all__");
+          }else{
+            renderFolders();renderList();
+          }
+          showToast("✓ 已移至「"+targetFolder+"」");
+        }
+      }
+    }
+  }
+  touchNoteId=null;
+  touchMoved=false;
+}
+
+document.addEventListener("touchmove",handleTouchMove,{passive:false});
+document.addEventListener("touchend",handleTouchEnd,{passive:false});
+document.addEventListener("touchcancel",handleTouchEnd,{passive:false});
 
 // ======== 笔记过滤 ========
 function getFilteredNotes(){
@@ -934,7 +1126,10 @@ function renderList(){
     var ts=(t.getMonth()+1)+"/"+t.getDate()+" "+String(t.getHours()).padStart(2,"0")+":"+String(t.getMinutes()).padStart(2,"0");
     var active=n.id===currentId?" active":"";
     var folderName=n.folder||"默认";
-    return '<div class="note-item'+active+'" onclick="selectNote(\''+n.id+'\')" oncontextmenu="showNoteContextMenu(event,\''+n.id+'\')">'+
+    return '<div class="note-item'+active+'" data-note-id="'+n.id+'" draggable="true" '+
+      'ondragstart="onNoteDragStart(event,\''+n.id+'\')" ondragend="onNoteDragEnd(event)" '+
+      'ontouchstart="onNoteTouchStart(event,\''+n.id+'\')" '+
+      'onclick="selectNote(\''+n.id+'\')" oncontextmenu="showNoteContextMenu(event,\''+n.id+'\')">'+
       '<span class="ni-icon">📄</span>'+
       '<div class="ni-text"><div class="ni-title">'+escHtml(title)+'</div>'+
       '<div class="ni-meta"><span class="ni-folder-tag">'+escHtml(folderName)+'</span><span>'+ts+'</span></div></div>'+
