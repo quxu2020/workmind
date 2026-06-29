@@ -58,13 +58,15 @@ body{
 .icon-notepad{background:linear-gradient(135deg,#f59e0b,#d97706);}
 .icon-mindmap{background:linear-gradient(135deg,#6366f1,#4f46e5);}
 .icon-backup{background:linear-gradient(135deg,#10b981,#059669);}
+.icon-config{background:linear-gradient(135deg,#8b5cf6,#7c3aed);}
+.icon-security{background:linear-gradient(135deg,#ef4444,#dc2626);}
 
 /* 云端状态 */
 .cloud-status{
-  position:absolute;top:4px;right:4px;
   width:8px;height:8px;border-radius:50%;
   background:#ef4444;box-shadow:0 0 6px rgba(239,68,68,.5);
   transition:background .4s;
+  display:inline-block;
 }
 .cloud-status.online{background:#10b981;box-shadow:0 0 6px rgba(16,185,129,.5);}
 .cloud-status.syncing{background:#f59e0b;animation:pulse 1s infinite;}
@@ -141,6 +143,222 @@ body{
 }
 .bottom-dot.active{background:#6366f1;width:24px;border-radius:4px;}
 
+/* ======== 模态面板通用 ======== */
+.modal-overlay{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,.6);z-index:1000;
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+}
+.modal-overlay.hidden{display:none;}
+.modal-panel{
+  background:#1a1a3e;border:1px solid rgba(99,102,241,.2);
+  border-radius:20px;padding:28px 24px 24px;
+  width:92%;max-width:420px;max-height:85vh;overflow-y:auto;
+  box-shadow:0 24px 80px rgba(0,0,0,.6);
+  color:#e0e7ff;
+}
+.modal-panel h3{
+  font-size:18px;color:#c4b5fd;margin-bottom:20px;
+  text-align:center;font-weight:600;
+}
+.modal-panel .modal-close{
+  position:sticky;top:0;float:right;
+  width:32px;height:32px;border-radius:50%;
+  background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);
+  color:#818cf8;font-size:18px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s;
+}
+.modal-panel .modal-close:hover{background:rgba(239,68,68,.2);color:#f87171;}
+
+/* ======== 配置面板 ======== */
+.config-section{
+  margin-bottom:18px;padding:14px;
+  background:rgba(99,102,241,.06);border-radius:12px;
+  border:1px solid rgba(99,102,241,.08);
+}
+.config-section .cs-title{
+  font-size:13px;color:#818cf8;font-weight:600;
+  margin-bottom:8px;display:flex;align-items:center;gap:6px;
+}
+.config-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:7px 0;font-size:12px;
+}
+.config-row .cr-label{color:#94a3b8;}
+.config-row .cr-value{
+  color:#c4b5fd;font-family:monospace;font-size:11px;
+  word-break:break-all;text-align:right;max-width:55%;
+}
+.config-row .cr-value a{color:#818cf8;text-decoration:none;}
+.config-store-item{
+  padding:8px 10px;margin:4px 0;
+  background:rgba(15,12,41,.4);border-radius:8px;
+  font-size:11px;line-height:1.6;
+}
+.config-store-item .csi-type{color:#10b981;font-weight:600;}
+.config-store-item .csi-desc{color:#94a3b8;margin-left:4px;}
+.config-store-item .csi-id{color:#475569;font-family:monospace;font-size:10px;}
+
+/* ======== 锁屏 ======== */
+.lock-overlay{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:linear-gradient(135deg,#0a0a1a 0%,#0f0c29 50%,#1a1a2e 100%);
+  z-index:2000;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;
+}
+.lock-overlay.hidden{display:none;}
+.lock-container{
+  width:92%;max-width:360px;text-align:center;
+  padding-bottom:env(safe-area-inset-bottom,20px);
+}
+.lock-icon{
+  font-size:56px;margin-bottom:16px;
+}
+.lock-title{
+  font-size:20px;color:#e0e7ff;font-weight:600;margin-bottom:6px;
+}
+.lock-subtitle{
+  font-size:13px;color:#64748b;margin-bottom:28px;line-height:1.5;
+}
+.lock-error{
+  font-size:13px;color:#f87171;margin-bottom:12px;
+  min-height:20px;transition:all .2s;
+}
+.lock-error.shake{animation:shake .4s ease;}
+@keyframes shake{
+  0%,100%{transform:translateX(0);}
+  20%{transform:translateX(-6px);}
+  40%{transform:translateX(6px);}
+  60%{transform:translateX(-4px);}
+  80%{transform:translateX(4px);}
+}
+
+/* 模式切换 */
+.lock-mode-tabs{
+  display:flex;gap:0;margin-bottom:24px;
+  background:rgba(99,102,241,.08);border-radius:12px;
+  padding:4px;
+}
+.lock-mode-tabs button{
+  flex:1;padding:10px;border-radius:10px;
+  border:none;background:transparent;
+  color:#64748b;font-size:14px;cursor:pointer;
+  transition:all .2s;
+}
+.lock-mode-tabs button.active{
+  background:rgba(99,102,241,.2);color:#a5b4fc;
+  font-weight:600;
+}
+
+/* 手势画布 */
+.lock-gesture-wrap{
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:20px;
+}
+.lock-gesture-wrap canvas{
+  touch-action:none;
+  border-radius:12px;
+}
+
+/* PIN 输入 */
+.lock-pin-wrap{
+  display:flex;gap:12px;justify-content:center;margin-bottom:20px;
+}
+.lock-pin-dot{
+  width:48px;height:48px;border-radius:12px;
+  border:2px solid rgba(99,102,241,.3);
+  background:rgba(99,102,241,.05);
+  transition:all .15s;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;color:#e0e7ff;font-weight:700;
+}
+.lock-pin-dot.filled{
+  border-color:#6366f1;background:rgba(99,102,241,.2);
+}
+
+/* 数字键盘 */
+.lock-numpad{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:8px;max-width:280px;margin:0 auto 16px;
+}
+.lock-numpad button{
+  padding:16px 0;border-radius:12px;
+  border:1px solid rgba(99,102,241,.12);
+  background:rgba(99,102,241,.06);
+  color:#c4b5fd;font-size:22px;font-weight:500;
+  cursor:pointer;transition:all .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.lock-numpad button:active{
+  background:rgba(99,102,241,.25);transform:scale(.95);
+}
+.lock-numpad .np-del{
+  font-size:14px;color:#64748b;
+}
+.lock-numpad .np-empty{visibility:hidden;}
+
+.lock-btn-row{
+  display:flex;gap:12px;justify-content:center;margin-top:8px;
+}
+.lock-btn{
+  padding:10px 28px;border-radius:24px;
+  border:1px solid rgba(99,102,241,.2);
+  background:rgba(99,102,241,.1);
+  color:#818cf8;font-size:14px;cursor:pointer;
+  transition:all .15s;
+}
+.lock-btn:hover{background:rgba(99,102,241,.2);}
+.lock-btn.primary{
+  background:linear-gradient(135deg,#6366f1,#4f46e5);
+  color:#fff;border:none;font-weight:600;
+}
+.lock-attempts{
+  font-size:11px;color:#475569;margin-top:16px;
+}
+
+/* ======== 安全管理面板 ======== */
+.sec-form-group{margin-bottom:16px;}
+.sec-form-group label{
+  display:block;font-size:12px;color:#94a3b8;margin-bottom:6px;
+}
+.sec-form-group input{
+  width:100%;padding:12px 14px;border-radius:10px;
+  border:1px solid rgba(99,102,241,.2);
+  background:rgba(15,12,41,.6);color:#e0e7ff;
+  font-size:15px;outline:none;transition:border .2s;
+}
+.sec-form-group input:focus{border-color:#6366f1;}
+.sec-form-group input::placeholder{color:#475569;}
+.sec-btn-row{
+  display:flex;gap:10px;margin-top:20px;
+}
+.sec-btn{
+  flex:1;padding:12px;border-radius:12px;
+  border:1px solid rgba(99,102,241,.2);
+  background:rgba(99,102,241,.1);
+  color:#818cf8;font-size:14px;cursor:pointer;
+  text-align:center;transition:all .15s;
+}
+.sec-btn:hover{background:rgba(99,102,241,.2);}
+.sec-btn.danger{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.3);color:#f87171;}
+.sec-btn.primary{background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;}
+.sec-info{
+  padding:12px;margin-bottom:14px;
+  background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.15);
+  border-radius:10px;font-size:12px;color:#34d399;
+}
+
+/* Toast */
+.toast-global{
+  position:fixed;bottom:40px;left:50%;transform:translateX(-50%);
+  padding:10px 24px;border-radius:24px;font-size:14px;
+  z-index:3000;pointer-events:none;transition:opacity .3s;
+  background:rgba(16,185,129,.9);color:#fff;
+}
+
 /* 移动端适配 */
 @media(min-width:768px){
   .app-grid{justify-content:flex-start;padding-left:40px;}
@@ -161,6 +379,9 @@ body{
   .rem-text{font-size:12px;}
   .rem-close{width:28px;height:28px;font-size:18px;}
   .bottom-bar{height:50px;padding-bottom:env(safe-area-inset-bottom,8px);}
+  .modal-panel{border-radius:18px;padding:22px 18px 20px;}
+  .lock-numpad button{padding:18px 0;font-size:24px;}
+  .lock-pin-dot{width:44px;height:44px;}
 }
 @media(max-width:380px){
   .clock{font-size:42px;}
@@ -174,12 +395,49 @@ body{
 </head>
 <body>
 
+<!-- ======== 锁屏层 ======== -->
+<div class="lock-overlay" id="lockOverlay">
+  <div class="lock-container">
+    <div class="lock-icon" id="lockIcon">🔒</div>
+    <div class="lock-title" id="lockTitle">设置安全密码</div>
+    <div class="lock-subtitle" id="lockSubtitle">请选择解锁方式并设置密码</div>
+    <div class="lock-error" id="lockError"></div>
+
+    <!-- 模式切换 -->
+    <div class="lock-mode-tabs" id="lockModeTabs">
+      <button class="active" data-mode="gesture">✋ 手势密码</button>
+      <button data-mode="pin">🔢 数字密码</button>
+    </div>
+
+    <!-- 手势画布 -->
+    <div class="lock-gesture-wrap" id="gestureWrap">
+      <canvas id="gestureCanvas" width="280" height="280"></canvas>
+    </div>
+
+    <!-- PIN 输入 -->
+    <div id="pinWrap" style="display:none;">
+      <div class="lock-pin-wrap" id="pinDots">
+        <div class="lock-pin-dot"></div><div class="lock-pin-dot"></div>
+        <div class="lock-pin-dot"></div><div class="lock-pin-dot"></div>
+      </div>
+      <div class="lock-numpad" id="numpad"></div>
+    </div>
+
+    <div class="lock-btn-row">
+      <button class="lock-btn primary" id="lockConfirmBtn" style="display:none;">确认</button>
+      <button class="lock-btn" id="lockResetBtn" style="display:none;">重新设置</button>
+    </div>
+    <div class="lock-attempts" id="lockAttempts"></div>
+  </div>
+</div>
+
+<!-- ======== 桌面内容 ======== -->
 <div class="top-area">
   <div class="clock" id="clock">17:08</div>
   <div class="date-row">
     <span id="weekday">周六</span>
     <span id="dateStr">6月27日</span>
-    <div class="cloud-status" id="cloudDot" title="云端: 连接中..."></div>
+    <span class="cloud-status" id="cloudDot" title="云端: 连接中..."></span>
   </div>
 </div>
 
@@ -192,7 +450,108 @@ body{
 
 <div class="bottom-bar" id="bottomBar"></div>
 
+<!-- ======== 配置面板 ======== -->
+<div class="modal-overlay hidden" id="configOverlay">
+  <div class="modal-panel">
+    <button class="modal-close" onclick="closeConfig()">✕</button>
+    <h3>⚙️ 系统配置</h3>
+
+    <div class="config-section">
+      <div class="cs-title">🌐 域名与部署</div>
+      <div class="config-row"><span class="cr-label">自定义域名</span><span class="cr-value"><a href="https://www.quxu2020.tech" target="_blank">www.quxu2020.tech</a></span></div>
+      <div class="config-row"><span class="cr-label">GitHub Pages</span><span class="cr-value"><a href="https://quxu2020.github.io/workmind/" target="_blank">quxu2020.github.io/workmind</a></span></div>
+      <div class="config-row"><span class="cr-label">部署方式</span><span class="cr-value">GitHub Pages（免费）</span></div>
+      <div class="config-row"><span class="cr-label">代码仓库</span><span class="cr-value"><a href="https://github.com/quxu2020/workmind" target="_blank">quxu2020/workmind</a></span></div>
+      <div class="config-row"><span class="cr-label">最后更新</span><span class="cr-value" id="cfgUpdated"></span></div>
+    </div>
+
+    <div class="config-section">
+      <div class="cs-title">💾 数据存储</div>
+      <div class="config-store-item">
+        <span class="csi-type">JSONBin.io</span><span class="csi-desc">记事本笔记 + 桌面提醒</span>
+        <br><span class="csi-id">Bin: 6a41defdda38895dfe0dcf54</span>
+      </div>
+      <div class="config-store-item">
+        <span class="csi-type">JSONBin.io</span><span class="csi-desc">手机矩阵导图数据</span>
+        <br><span class="csi-id">Bin: 6a3f7714da38895dfe06521b</span>
+      </div>
+      <div class="config-store-item">
+        <span class="csi-type">GitHub</span><span class="csi-desc">所有程序代码（HTML/CSS/JS）</span>
+        <br><span class="csi-id">quxu2020/workmind</span>
+      </div>
+      <div class="config-store-item">
+        <span class="csi-type">本地</span><span class="csi-desc">安全密码（哈希存储，仅本设备）</span>
+        <br><span class="csi-id">浏览器 localStorage</span>
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="cs-title">📋 访问地址汇总</div>
+      <div style="font-size:12px;color:#94a3b8;line-height:2;">
+        <div>桌面工作台：<a href="https://www.quxu2020.tech" target="_blank" style="color:#818cf8;">www.quxu2020.tech</a></div>
+        <div>手机矩阵导图：<a href="https://www.quxu2020.tech/mindmap.html" target="_blank" style="color:#818cf8;">www.quxu2020.tech/mindmap.html</a></div>
+        <div>记事本：<a href="https://www.quxu2020.tech/apps/notepad/index.html" target="_blank" style="color:#818cf8;">www.quxu2020.tech/apps/notepad/</a></div>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:12px;">
+      <button class="sec-btn" onclick="closeConfig()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======== 安全管理面板 ======== -->
+<div class="modal-overlay hidden" id="securityOverlay">
+  <div class="modal-panel">
+    <button class="modal-close" onclick="closeSecurity()">✕</button>
+    <h3>🛡️ 安全管理</h3>
+
+    <div id="secStep1">
+      <div class="sec-info">⚠️ 修改密码需要验证手机号码</div>
+      <div class="sec-form-group">
+        <label>请输入绑定的手机号码</label>
+        <input type="tel" id="secPhone" placeholder="输入手机号进行验证" maxlength="11" inputmode="numeric">
+      </div>
+      <div id="secPhoneError" style="font-size:12px;color:#f87171;margin-bottom:8px;min-height:18px;"></div>
+      <div class="sec-btn-row">
+        <button class="sec-btn" onclick="closeSecurity()">取消</button>
+        <button class="sec-btn primary" onclick="verifyPhone()">验证并继续</button>
+      </div>
+    </div>
+
+    <div id="secStep2" style="display:none;">
+      <div class="sec-info">✅ 身份验证通过，请设置新密码</div>
+      <p style="font-size:12px;color:#94a3b8;text-align:center;margin-bottom:14px;">选择解锁方式并设置新的安全密码</p>
+
+      <div class="lock-mode-tabs" id="secModeTabs">
+        <button class="active" data-mode="gesture">✋ 手势密码</button>
+        <button data-mode="pin">🔢 数字密码</button>
+      </div>
+
+      <div class="lock-gesture-wrap" id="secGestureWrap">
+        <canvas id="secGestureCanvas" width="280" height="280"></canvas>
+      </div>
+
+      <div id="secPinWrap" style="display:none;">
+        <div class="lock-pin-wrap" id="secPinDots">
+          <div class="lock-pin-dot"></div><div class="lock-pin-dot"></div>
+          <div class="lock-pin-dot"></div><div class="lock-pin-dot"></div>
+        </div>
+        <div class="lock-numpad" id="secNumpad"></div>
+      </div>
+
+      <div class="lock-error" id="secError"></div>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button class="sec-btn" onclick="closeSecurity()">取消</button>
+        <button class="sec-btn primary" id="secSaveBtn">保存新密码</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
 <script>
+// ======== 时钟 ========
 function updateClock(){
   var n=new Date();
   var h=String(n.getHours()).padStart(2,"0");
@@ -204,30 +563,45 @@ function updateClock(){
 }
 updateClock();setInterval(updateClock,10000);
 
+// ======== 应用列表 ========
 var apps=[
   {id:"notepad",label:"记事本",icon:"📝",cls:"icon-notepad",url:"apps/notepad/index.html"},
   {id:"mindmap",label:"手机矩阵",icon:"📱",cls:"icon-mindmap",url:"mindmap.html"},
-  {id:"backup",label:"打包备份",icon:"💾",cls:"icon-backup",url:"#",action:"downloadBackup"}
+  {id:"backup",label:"打包备份",icon:"💾",cls:"icon-backup",url:"#",action:"downloadBackup"},
+  {id:"config",label:"配置信息",icon:"⚙️",cls:"icon-config",url:"#",action:"openConfig"},
+  {id:"security",label:"安全管理",icon:"🛡️",cls:"icon-security",url:"#",action:"openSecurity"}
 ];
 
-var grid=document.getElementById("appGrid");
-var bar=document.getElementById("bottomBar");
+function renderApps(){
+  var grid=document.getElementById("appGrid");
+  var bar=document.getElementById("bottomBar");
+  grid.innerHTML="";bar.innerHTML="";
+  apps.forEach(function(app,i){
+    var item=document.createElement("div");
+    item.className="app-item";
+    item.innerHTML='<div class="app-icon '+app.cls+'">'+app.icon+'</div><div class="app-label">'+app.label+'</div>';
+    if(app.action){
+      item.onclick=window[app.action];
+    }else{
+      item.onclick=function(){location.href=app.url;};
+    }
+    grid.appendChild(item);
 
-apps.forEach(function(app,i){
-  var item=document.createElement("div");
-  item.className="app-item";
-  item.innerHTML='<div class="app-icon '+app.cls+'">'+app.icon+'</div><div class="app-label">'+app.label+'</div>';
-  if(app.action){
-    item.onclick=window[app.action];
-  }else{
-    item.onclick=function(){location.href=app.url;};
-  }
-  grid.appendChild(item);
+    var dot=document.createElement("div");
+    dot.className="bottom-dot"+(i===0?" active":"");
+    bar.appendChild(dot);
+  });
+}
+renderApps();
 
-  var dot=document.createElement("div");
-  dot.className="bottom-dot"+(i===0?" active":"");
-  bar.appendChild(dot);
-});
+// ======== 配置面板 ========
+function openConfig(){
+  document.getElementById("cfgUpdated").textContent=APP_CONFIG.updatedAt||"未知";
+  document.getElementById("configOverlay").classList.remove("hidden");
+}
+function closeConfig(){
+  document.getElementById("configOverlay").classList.add("hidden");
+}
 
 // ======== 提醒功能 + 云端同步 ========
 var REM_KEY="reminders_v1";
@@ -245,7 +619,6 @@ function saveReminders(list){
   pushRemindersToCloud(list);
 }
 
-// 只推送提醒到云端（保留云端笔记不覆盖）
 function pushRemindersToCloud(reminders){
   setCloudStatus("syncing");
   fetch(JSONBIN_USER_URL+"/latest",{
@@ -264,7 +637,6 @@ function pushRemindersToCloud(reminders){
   }).catch(function(){setCloudStatus("offline");});
 }
 
-// 从云端拉取
 function pullFromCloud(){
   setCloudStatus("syncing");
   fetch(JSONBIN_USER_URL+"/latest",{
@@ -345,27 +717,638 @@ function dismissRem(idx){
 
 // ======== 打包下载 ========
 function downloadBackup(){
-  showDownloadToast();
-  // 用 window.open 避免 download 属性不跟随重定向的问题
+  showToast("📦 正在下载备份包...");
   window.open("https://github.com/quxu2020/workmind/archive/refs/heads/main.zip","_blank");
 }
 
-function showDownloadToast(){
+function showToast(msg,color){
   var t=document.createElement("div");
-  t.textContent="📦 正在下载备份包...";
-  t.style.cssText="position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(16,185,129,.9);color:#fff;padding:10px 24px;border-radius:24px;font-size:14px;z-index:200;pointer-events:none;transition:transform .3s ease,opacity .3s ease;";
+  t.textContent=msg;
+  t.style.cssText="position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:"+(color||"rgba(16,185,129,.9)")+";color:#fff;padding:10px 24px;border-radius:24px;font-size:14px;z-index:3000;pointer-events:none;transition:transform .3s ease,opacity .3s ease;";
   document.body.appendChild(t);
   setTimeout(function(){t.style.opacity="0";setTimeout(function(){t.remove();},600);},3000);
 }
 
-// ======== 初始化：云端拉取 ========
-pullFromCloud();
-renderReminders();
+// ======== 安全密码系统 ========
+var SEC_KEY="workmind_security_v1";
+var MAX_ATTEMPTS=5;
+var LOCKOUT_MS=30000;
 
-// 从其他应用返回时自动从云端刷新
-document.addEventListener("visibilitychange",function(){
-  if(!document.hidden){pullFromCloud();}
-});
+function getSecurity(){
+  try{return JSON.parse(localStorage.getItem(SEC_KEY)||"{}");}catch(e){return{};}
+}
+
+function saveSecurity(obj){
+  localStorage.setItem(SEC_KEY,JSON.stringify(obj));
+}
+
+function simpleHash(s){
+  var h=0,i,c;
+  for(i=0;i<s.length;i++){c=s.charCodeAt(i);h=((h<<5)-h)+c;h|=0;}
+  return "h"+Math.abs(h).toString(36);
+}
+
+// ======== 手势密码画布 ========
+function initGestureCanvas(canvasId, onComplete){
+  var oldCanvas=document.getElementById(canvasId);
+  if(!oldCanvas)return;
+  // 克隆画布以清除旧的事件监听器
+  var canvas=oldCanvas.cloneNode(true);
+  oldCanvas.parentNode.replaceChild(canvas,oldCanvas);
+  lockState.gestureVersion++;
+  var ver=lockState.gestureVersion;
+  var ctx=canvas.getContext("2d");
+  var size=canvas.width;
+  var margin=40,step=(size-margin*2)/2;
+  var r=16;
+  var dots=[];
+  for(var row=0;row<3;row++){
+    for(var col=0;col<3;col++){
+      dots.push({x:margin+col*step,y:margin+row*step,idx:row*3+col+1,active:false});
+    }
+  }
+
+  var pattern=[];
+  var drawing=false;
+  var currentX=0,currentY=0;
+
+  function getTouchPos(e){
+    var rect=canvas.getBoundingClientRect();
+    var scaleX=size/rect.width, scaleY=size/rect.height;
+    var t=e.touches?e.touches[0]:e;
+    return {x:(t.clientX-rect.left)*scaleX, y:(t.clientY-rect.top)*scaleY};
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,size,size);
+    // 连线
+    if(pattern.length>0){
+      ctx.beginPath();
+      ctx.strokeStyle="#6366f1";
+      ctx.lineWidth=3;
+      ctx.lineCap="round";
+      ctx.lineJoin="round";
+      var first=dots.find(function(d){return d.idx===pattern[0];});
+      if(first)ctx.moveTo(first.x,first.y);
+      for(var i=1;i<pattern.length;i++){
+        var d=dots.find(function(dd){return dd.idx===pattern[i];});
+        if(d)ctx.lineTo(d.x,d.y);
+      }
+      if(drawing&&pattern.length>0){
+        var last=dots.find(function(dd){return dd.idx===pattern[pattern.length-1];});
+        if(last)ctx.lineTo(currentX,currentY);
+      }
+      ctx.stroke();
+    }
+    // 画点
+    dots.forEach(function(d){
+      ctx.beginPath();
+      ctx.arc(d.x,d.y,r,0,Math.PI*2);
+      if(pattern.indexOf(d.idx)>=0){
+        ctx.fillStyle="rgba(99,102,241,.4)";
+        ctx.fill();
+        ctx.strokeStyle="#818cf8";
+        ctx.lineWidth=2.5;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(d.x,d.y,r-5,0,Math.PI*2);
+        ctx.fillStyle="#a5b4fc";
+        ctx.fill();
+      }else{
+        ctx.fillStyle="rgba(99,102,241,.08)";
+        ctx.fill();
+        ctx.strokeStyle="rgba(99,102,241,.25)";
+        ctx.lineWidth=1.5;
+        ctx.stroke();
+      }
+    });
+  }
+
+  function hitDot(px,py){
+    for(var i=0;i<dots.length;i++){
+      var dx=px-dots[i].x,dy=py-dots[i].y;
+      if(Math.sqrt(dx*dx+dy*dy)<r*1.8)return dots[i];
+    }
+    return null;
+  }
+
+  canvas.addEventListener("touchstart",function(e){
+    e.preventDefault();
+    pattern=[];drawing=true;
+    var p=getTouchPos(e);
+    var d=hitDot(p.x,p.y);
+    if(d&&pattern.indexOf(d.idx)<0)pattern.push(d.idx);
+    draw();
+  });
+  canvas.addEventListener("touchmove",function(e){
+    e.preventDefault();
+    if(!drawing)return;
+    var p=getTouchPos(e);
+    currentX=p.x;currentY=p.y;
+    var d=hitDot(p.x,p.y);
+    if(d&&pattern.indexOf(d.idx)<0)pattern.push(d.idx);
+    draw();
+  });
+  canvas.addEventListener("touchend",function(e){
+    e.preventDefault();
+    drawing=false;
+    draw();
+    if(ver===lockState.gestureVersion){
+      if(pattern.length>=3&&onComplete){setTimeout(function(){onComplete(pattern.join("-"));},150);}
+      else if(pattern.length<3&&onComplete){setTimeout(function(){onComplete("");},150);}
+    }
+  });
+
+  // 鼠标支持
+  canvas.addEventListener("mousedown",function(e){
+    pattern=[];drawing=true;
+    var p=getTouchPos(e);
+    var d=hitDot(p.x,p.y);
+    if(d&&pattern.indexOf(d.idx)<0)pattern.push(d.idx);
+    draw();
+  });
+  canvas.addEventListener("mousemove",function(e){
+    if(!drawing)return;
+    var p=getTouchPos(e);
+    currentX=p.x;currentY=p.y;
+    var d=hitDot(p.x,p.y);
+    if(d&&pattern.indexOf(d.idx)<0)pattern.push(d.idx);
+    draw();
+  });
+  canvas.addEventListener("mouseup",function(e){
+    if(!drawing)return;
+    drawing=false;
+    draw();
+    if(ver===lockState.gestureVersion){
+      if(pattern.length>=3&&onComplete){setTimeout(function(){onComplete(pattern.join("-"));},150);}
+      else if(pattern.length<3&&onComplete){setTimeout(function(){onComplete("");},150);}
+    }
+  });
+
+  draw();
+}
+
+function resetGestureCanvas(canvasId){
+  var canvas=document.getElementById(canvasId);
+  if(!canvas)return;
+  var ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // 重绘空白点
+  var size=canvas.width;
+  var margin=40,step=(size-margin*2)/2;
+  var r=16;
+  for(var row=0;row<3;row++){
+    for(var col=0;col<3;col++){
+      var x=margin+col*step,y=margin+row*step;
+      ctx.beginPath();
+      ctx.arc(x,y,r,0,Math.PI*2);
+      ctx.fillStyle="rgba(99,102,241,.08)";
+      ctx.fill();
+      ctx.strokeStyle="rgba(99,102,241,.25)";
+      ctx.lineWidth=1.5;
+      ctx.stroke();
+    }
+  }
+}
+
+// ======== PIN 数字键盘 ========
+function buildNumpad(containerId, dotsId, onComplete){
+  var container=document.getElementById(containerId);
+  if(!container)return;
+  container._pin=container._pin||"";
+  container._dotsId=dotsId;
+  container._onPinComplete=onComplete;
+  var maxLen=4;
+
+  container.innerHTML="";
+  [1,2,3,4,5,6,7,8,9,"del",0,"empty"].forEach(function(key){
+    var btn=document.createElement("button");
+    if(key==="del"){btn.textContent="⌫";btn.className="np-del";}
+    else if(key==="empty"){btn.textContent="";btn.className="np-empty";}
+    else{btn.textContent=key;}
+
+    btn.onclick=function(){
+      var pin=container._pin||"";
+      if(key==="del"){pin=pin.slice(0,-1);}
+      else if(key==="empty"){return;}
+      else{pin+=key;if(pin.length>maxLen)pin=pin.slice(0,maxLen);}
+      container._pin=pin;
+      updatePinDots(dotsId,pin);
+      if(pin.length===maxLen&&onComplete){
+        setTimeout(function(){onComplete(pin);},200);
+      }
+    };
+    container.appendChild(btn);
+  });
+}
+
+function resetNumpad(containerId){
+  var container=document.getElementById(containerId);
+  if(container)container._pin="";
+}
+
+function updatePinDots(dotsId, pin){
+  var dots=document.getElementById(dotsId).children;
+  for(var i=0;i<4;i++){
+    dots[i].classList.toggle("filled",i<pin.length);
+    dots[i].textContent=i<pin.length?"●":"";
+  }
+}
+
+function resetPinDots(dotsId){
+  var dots=document.getElementById(dotsId).children;
+  for(var i=0;i<4;i++){
+    dots[i].classList.remove("filled");
+    dots[i].textContent="";
+  }
+}
+
+// ======== 锁屏逻辑 ========
+var lockState={
+  mode:"gesture",
+  step:"idle",       // idle | setup1 | setup2 | unlock | locked
+  firstInput:"",
+  attempts:0,
+  lockoutUntil:0,
+  gestureVersion:0   // 防止旧的回调触发
+};
+
+var lockOverlay,lockTitle,lockSubtitle,lockError,lockIcon,lockConfirmBtn,lockResetBtn,lockAttempts;
+var lockModeTabs,gestureWrap,pinWrap;
+
+function initLockUI(){
+  lockOverlay=document.getElementById("lockOverlay");
+  lockTitle=document.getElementById("lockTitle");
+  lockSubtitle=document.getElementById("lockSubtitle");
+  lockError=document.getElementById("lockError");
+  lockIcon=document.getElementById("lockIcon");
+  lockConfirmBtn=document.getElementById("lockConfirmBtn");
+  lockResetBtn=document.getElementById("lockResetBtn");
+  lockAttempts=document.getElementById("lockAttempts");
+  lockModeTabs=document.getElementById("lockModeTabs");
+  gestureWrap=document.getElementById("gestureWrap");
+  pinWrap=document.getElementById("pinWrap");
+}
+
+function showLockError(msg){
+  lockError.textContent=msg;
+  lockError.classList.remove("shake");
+  void lockError.offsetWidth;
+  lockError.classList.add("shake");
+}
+
+function setLockMode(mode){
+  lockState.mode=mode;
+  gestureWrap.style.display=mode==="gesture"?"":"none";
+  pinWrap.style.display=mode==="pin"?"":"none";
+  // 更新模式标签
+  var tabs=lockModeTabs.querySelectorAll("button");
+  tabs.forEach(function(b){b.classList.toggle("active",b.dataset.mode===mode);});
+}
+
+function resetLockInputs(){
+  resetGestureCanvas("gestureCanvas");
+  resetPinDots("pinDots");
+  resetNumpad("numpad");
+  lockState.firstInput="";
+  lockConfirmBtn.style.display="none";
+  lockResetBtn.style.display="none";
+}
+
+// 检查是否需要解锁
+function checkLock(){
+  var sec=getSecurity();
+  if(!sec.setup){
+    // 首次设置
+    startSetup();
+  }else{
+    // 需要解锁
+    startUnlock();
+  }
+}
+
+function startSetup(){
+  lockOverlay.classList.remove("hidden");
+  lockIcon.textContent="🔐";
+  lockTitle.textContent="设置安全密码";
+  lockSubtitle.textContent="请选择解锁方式并设置密码";
+  lockError.textContent="";
+  lockAttempts.textContent="";
+  lockState.step="setup1";
+  lockState.firstInput="";
+  lockState.attempts=0;
+  lockConfirmBtn.style.display="none";
+  lockResetBtn.style.display="none";
+
+  lockModeTabs.style.display="flex";
+  setLockMode("gesture");
+  buildNumpad("numpad","pinDots",function(pin){
+    handlePinInput(pin);
+  });
+  initGestureCanvas("gestureCanvas",function(pattern){
+    handleGestureInput(pattern);
+  });
+
+  // 模式切换
+  lockModeTabs.querySelectorAll("button").forEach(function(b){
+    b.onclick=function(){setLockMode(b.dataset.mode);resetLockInputs();lockError.textContent="";};
+  });
+}
+
+function startUnlock(){
+  lockOverlay.classList.remove("hidden");
+  lockIcon.textContent="🔒";
+  lockTitle.textContent="请输入密码解锁";
+  lockSubtitle.textContent="";
+  lockError.textContent="";
+  lockState.step="unlock";
+  lockState.firstInput="";
+  lockConfirmBtn.style.display="none";
+  lockResetBtn.style.display="none";
+
+  var sec=getSecurity();
+  lockState.mode=sec.mode||"gesture";
+  lockModeTabs.style.display="none";
+  setLockMode(lockState.mode);
+
+  lockAttempts.textContent="";
+
+  buildNumpad("numpad","pinDots",function(pin){
+    handlePinInput(pin);
+  });
+  initGestureCanvas("gestureCanvas",function(pattern){
+    handleGestureInput(pattern);
+  });
+}
+
+function handleGestureInput(pattern){
+  if(!pattern||pattern.length<3){
+    if(lockState.step==="unlock"){showLockError("请至少连接3个点");resetLockInputs();initGestureCanvas("gestureCanvas",handleGestureInput);}
+    return;
+  }
+
+  if(lockState.step==="setup1"){
+    lockState.firstInput=pattern;
+    lockState.step="setup2";
+    lockTitle.textContent="请再次绘制确认";
+    lockSubtitle.textContent="";
+    lockError.textContent="";
+    setTimeout(function(){resetGestureCanvas("gestureCanvas");initGestureCanvas("gestureCanvas",handleGestureInput);},500);
+  }else if(lockState.step==="setup2"){
+    if(pattern===lockState.firstInput){
+      // 一致，保存
+      var sec=getSecurity();
+      sec.mode="gesture";
+      sec.hash=simpleHash(pattern);
+      sec.setup=true;
+      saveSecurity(sec);
+      lockOverlay.classList.add("hidden");
+      showToast("✅ 手势密码设置成功");
+      initApp();
+    }else{
+      showLockError("两次手势不一致，请重新设置");
+      lockState.step="setup1";
+      lockState.firstInput="";
+      lockTitle.textContent="设置安全密码";
+      lockSubtitle.textContent="请绘制手势密码";
+      setTimeout(function(){resetGestureCanvas("gestureCanvas");initGestureCanvas("gestureCanvas",handleGestureInput);},300);
+    }
+  }else if(lockState.step==="unlock"){
+    var sec=getSecurity();
+    if(simpleHash(pattern)===sec.hash){
+      unlockSuccess();
+    }else{
+      unlockFail();
+    }
+  }
+}
+
+function handlePinInput(pin){
+  if(!pin||pin.length<4)return;
+
+  if(lockState.step==="setup1"){
+    lockState.firstInput=pin;
+    lockState.step="setup2";
+    lockTitle.textContent="请再次输入确认";
+    lockSubtitle.textContent="";
+    lockError.textContent="";
+    setTimeout(function(){resetPinDots("pinDots");},400);
+  }else if(lockState.step==="setup2"){
+    if(pin===lockState.firstInput){
+      var sec=getSecurity();
+      sec.mode="pin";
+      sec.hash=simpleHash(pin);
+      sec.setup=true;
+      saveSecurity(sec);
+      lockOverlay.classList.add("hidden");
+      showToast("✅ 数字密码设置成功");
+      initApp();
+    }else{
+      showLockError("两次密码不一致，请重新设置");
+      lockState.step="setup1";
+      lockState.firstInput="";
+      lockTitle.textContent="设置安全密码";
+      lockSubtitle.textContent="请输入4位数字密码";
+      setTimeout(function(){resetPinDots("pinDots");},300);
+    }
+  }else if(lockState.step==="unlock"){
+    var sec=getSecurity();
+    if(simpleHash(pin)===sec.hash){
+      unlockSuccess();
+    }else{
+      unlockFail();
+    }
+  }
+}
+
+function unlockSuccess(){
+  lockState.attempts=0;
+  lockOverlay.classList.add("hidden");
+  initApp();
+}
+
+function unlockFail(){
+  lockState.attempts++;
+  if(lockState.attempts>=MAX_ATTEMPTS){
+    lockState.lockoutUntil=Date.now()+LOCKOUT_MS;
+    showLockError("密码错误次数过多，请30秒后再试");
+    lockAttempts.textContent="已锁定，请等待...";
+    setTimeout(function(){
+      lockState.attempts=0;
+      lockState.lockoutUntil=0;
+      lockError.textContent="";
+      lockAttempts.textContent="";
+      resetLockInputs();
+      if(lockState.mode==="gesture")initGestureCanvas("gestureCanvas",handleGestureInput);
+    },LOCKOUT_MS);
+    return;
+  }
+  var remaining=MAX_ATTEMPTS-lockState.attempts;
+  showLockError("密码错误，还剩 "+remaining+" 次机会");
+  lockAttempts.textContent="尝试次数: "+lockState.attempts+"/"+MAX_ATTEMPTS;
+  resetLockInputs();
+  if(lockState.mode==="gesture")initGestureCanvas("gestureCanvas",handleGestureInput);
+}
+
+// ======== 安全管理 ========
+function openSecurity(){
+  var sec=getSecurity();
+  if(!sec.setup){
+    showToast("⚠️ 请先设置安全密码","rgba(245,158,11,.9)");
+    return;
+  }
+  document.getElementById("securityOverlay").classList.remove("hidden");
+  document.getElementById("secStep1").style.display="block";
+  document.getElementById("secStep2").style.display="none";
+  document.getElementById("secPhone").value="";
+  document.getElementById("secPhoneError").textContent="";
+  document.getElementById("secError").textContent="";
+}
+
+function closeSecurity(){
+  document.getElementById("securityOverlay").classList.add("hidden");
+}
+
+function verifyPhone(){
+  var phone=document.getElementById("secPhone").value.trim();
+  var sec=getSecurity();
+  var storedPhone=sec.phone||"";
+
+  if(!phone||phone.length!==11||!/^\d{11}$/.test(phone)){
+    document.getElementById("secPhoneError").textContent="请输入正确的11位手机号码";
+    return;
+  }
+
+  if(storedPhone&&phone!==storedPhone){
+    document.getElementById("secPhoneError").textContent="手机号与绑定号码不匹配";
+    return;
+  }
+
+  // 验证通过
+  document.getElementById("secPhoneError").textContent="";
+  document.getElementById("secStep1").style.display="none";
+  document.getElementById("secStep2").style.display="block";
+
+  // 如果没有存手机号，先存上
+  if(!storedPhone){
+    sec.phone=phone;
+    saveSecurity(sec);
+  }
+
+  // 初始化密码修改界面
+  initSecurityChange();
+}
+
+function initSecurityChange(){
+  var secMode="gesture";
+  document.getElementById("secModeTabs").querySelectorAll("button").forEach(function(b){
+    b.classList.toggle("active",b.dataset.mode===secMode);
+  });
+  document.getElementById("secGestureWrap").style.display="";
+  document.getElementById("secPinWrap").style.display="none";
+  document.getElementById("secError").textContent="";
+  document.getElementById("secSaveBtn").style.display="none";
+
+  var newGesture="",newPin="";
+  var setupStep=1;
+
+  resetGestureCanvas("secGestureCanvas");
+  resetPinDots("secPinDots");
+
+  // 手势二次确认处理器
+  function secGestureStep2(p2){
+    if(!p2||p2.length<3)return;
+    if(p2===newGesture){
+      saveNewPassword("gesture",simpleHash(p2));
+    }else{
+      document.getElementById("secError").textContent="两次不一致，请重新绘制";
+      setupStep=1;newGesture="";
+      setTimeout(function(){resetGestureCanvas("secGestureCanvas");bindSecGesture();},300);
+    }
+  }
+
+  function secGestureStep1(pattern){
+    if(!pattern||pattern.length<3)return;
+    newGesture=pattern;setupStep=2;
+    document.getElementById("secError").textContent="请再次绘制确认";
+    setTimeout(function(){resetGestureCanvas("secGestureCanvas");initGestureCanvas("secGestureCanvas",secGestureStep2);},500);
+  }
+
+  function bindSecGesture(){
+    initGestureCanvas("secGestureCanvas",secGestureStep1);
+  }
+
+  // 模式切换
+  document.getElementById("secModeTabs").querySelectorAll("button").forEach(function(b){
+    b.onclick=function(){
+      secMode=b.dataset.mode;
+      document.getElementById("secModeTabs").querySelectorAll("button").forEach(function(bb){
+        bb.classList.toggle("active",bb.dataset.mode===secMode);
+      });
+      document.getElementById("secGestureWrap").style.display=secMode==="gesture"?"":"none";
+      document.getElementById("secPinWrap").style.display=secMode==="pin"?"":"none";
+      newGesture="";newPin="";setupStep=1;
+      document.getElementById("secError").textContent="";
+      document.getElementById("secSaveBtn").style.display="none";
+      resetGestureCanvas("secGestureCanvas");
+      resetPinDots("secPinDots");
+    };
+  });
+
+  buildNumpad("secNumpad","secPinDots",function(pin){
+    if(setupStep===1){
+      newPin=pin;setupStep=2;
+      document.getElementById("secError").textContent="请再次输入确认";
+      setTimeout(function(){resetPinDots("secPinDots");},400);
+    }else if(setupStep===2){
+      if(pin===newPin){
+        saveNewPassword("pin",simpleHash(pin));
+      }else{
+        document.getElementById("secError").textContent="两次不一致，请重新输入";
+        setupStep=1;newPin="";
+        setTimeout(function(){resetPinDots("secPinDots");},300);
+      }
+    }
+  });
+
+  bindSecGesture();
+
+  document.getElementById("secSaveBtn").onclick=function(){
+    // 手动保存触发（仅在需要时显示）
+    if(secMode==="gesture"&&newGesture&&setupStep===2){
+      saveNewPassword("gesture",simpleHash(newGesture));
+    }else if(secMode==="pin"&&newPin&&setupStep===2){
+      saveNewPassword("pin",simpleHash(newPin));
+    }else{
+      document.getElementById("secError").textContent="请先完成密码设置";
+    }
+  };
+}
+
+function saveNewPassword(mode,hash){
+  var sec=getSecurity();
+  sec.mode=mode;
+  sec.hash=hash;
+  saveSecurity(sec);
+  document.getElementById("securityOverlay").classList.add("hidden");
+  showToast("✅ 密码已更新");
+}
+
+// ======== 应用初始化（解锁后调用） ========
+var appInited=false;
+function initApp(){
+  if(appInited)return;
+  appInited=true;
+  pullFromCloud();
+  renderReminders();
+  document.addEventListener("visibilitychange",function(){
+    if(!document.hidden){pullFromCloud();}
+  });
+}
+
+// ======== 启动流程 ========
+initLockUI();
+checkLock();
 </script>
 </body>
 </html>
