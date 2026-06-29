@@ -624,13 +624,14 @@ function pushRemindersToCloud(reminders){
   fetch(JSONBIN_USER_URL+"/latest",{
     method:"GET",headers:{"X-Master-Key":JSONBIN_USER_KEY}
   }).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(existing){
-    var cloudNotes=[],cloudSecurity=null;
+    var cloudNotes=[],cloudFolders=null,cloudSecurity=null;
     if(existing&&existing.record){
       cloudNotes=existing.record.notes||[];
+      cloudFolders=existing.record.folders||null;
       cloudSecurity=existing.record.security||null;
     }
     var sec=getSecurity();
-    var data={notes:cloudNotes,reminders:reminders,security:cloudSecurity||sec,updatedAt:Date.now()};
+    var data={notes:cloudNotes,folders:cloudFolders,reminders:reminders,security:cloudSecurity||sec,updatedAt:Date.now()};
     return fetch(JSONBIN_USER_URL,{
       method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY,"X-Bin-Versioning":"false"},
       body:JSON.stringify(data)
