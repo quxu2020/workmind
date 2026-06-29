@@ -110,8 +110,27 @@ body{
   cursor:pointer;display:none;align-items:center;justify-content:center;
   line-height:1;
 }
+.folder-item .fi-rename{
+  width:18px;height:18px;border-radius:4px;flex-shrink:0;
+  background:none;border:none;color:#64748b;font-size:10px;
+  cursor:pointer;display:none;align-items:center;justify-content:center;
+  line-height:1;
+}
 .folder-item:hover .fi-del{display:flex;}
+.folder-item:hover .fi-rename{display:flex;}
 .folder-item .fi-del:hover{background:rgba(239,68,68,.15);color:#f87171;}
+.folder-item .fi-rename:hover{background:rgba(99,102,241,.15);color:#a5b4fc;}
+.folder-item .fi-rename-input{
+  flex:1;min-width:0;padding:2px 6px;border-radius:4px;
+  border:1px solid rgba(99,102,241,.4);background:rgba(15,15,26,.8);
+  color:#e0e7ff;font-size:12px;outline:none;
+}
+.folder-item.renaming .fi-name{display:none;}
+.folder-item.renaming .fi-count{display:none;}
+.folder-item.renaming .fi-rename{display:none;}
+.folder-item.renaming .fi-del{display:none;}
+.folder-item.renaming{cursor:default;}
+.folder-item.renaming:hover{background:rgba(99,102,241,.08);}
 
 /* 笔记列表区域 */
 .note-section{
@@ -644,10 +663,13 @@ function renderFolders(){
   folders.forEach(function(f){
     var count=getFolderCount(f);
     var active=currentFolder===f?" active":"";
-    var showDel=f!=="默认";
-    html+='<div class="folder-item'+active+'" onclick="selectFolder(\''+escAttr(f)+'\')">'+
-      '<span class="fi-icon">📁</span>'+escHtml(f)+'<span class="fi-count">'+count+'</span>'+
-      (showDel?'<button class="fi-del" onclick="event.stopPropagation();deleteFolder(\''+escAttr(f)+'\')" title="删除文件夹">×</button>':'')+
+    var showActions=f!=="默认";
+    html+='<div class="folder-item'+active+'" data-folder="'+escAttr(f)+'" onclick="selectFolder(\''+escAttr(f)+'\')">'+
+      '<span class="fi-icon">📁</span>'+
+      '<span class="fi-name">'+escHtml(f)+'</span>'+
+      '<span class="fi-count">'+count+'</span>'+
+      (showActions?'<button class="fi-rename" onclick="event.stopPropagation();startRenameFolder(event,\''+escAttr(f)+'\')" title="重命名">✏</button>':'')+
+      (showActions?'<button class="fi-del" onclick="event.stopPropagation();deleteFolder(\''+escAttr(f)+'\')" title="删除文件夹">×</button>':'')+
       '</div>';
   });
   el.innerHTML=html;
@@ -675,7 +697,7 @@ function selectFolder(name){
 function showNewFolderModal(){
   showModal("新建文件夹",
     '<label>文件夹名称</label><input id="modalInput" placeholder="如：工作、个人、学习..." maxlength="30">',
-    [{text:"取消"},{text:"创建",cls:"primary",action:function(){
+    [{text:"取消",action:function(){closeModal();}},{text:"创建",cls:"primary",action:function(){
       var name=document.getElementById("modalInput").value.trim();
       if(!name)return showToast("请输入文件夹名");
       if(folders.indexOf(name)>=0)return showToast("文件夹已存在");
@@ -709,6 +731,56 @@ function deleteFolder(name){
   showToast("✓ 文件夹已删除，笔记已移回默认");
 }
 
+// ======== 文件夹重命名（内联编辑） ========
+function startRenameFolder(e,oldName){
+  if(!e||!e.target)return;
+  var item=e.target.closest('.folder-item');
+  if(!item)return;
+  item.classList.add("renaming");
+  item.onclick=function(ev){ev.stopPropagation();}; // 阻止点击选择
+
+  // 创建输入框
+  var input=document.createElement("input");
+  input.className="fi-rename-input";
+  input.value=oldName;
+  input.maxLength=30;
+  var fiName=item.querySelector(".fi-name");
+  fiName.parentNode.insertBefore(input,fiName.nextSibling);
+
+  input.focus();
+  input.select();
+
+  function finish(save){
+    item.classList.remove("renaming");
+    item.onclick=function(){selectFolder(oldName);};
+    if(input.parentNode)input.remove();
+    if(!save)return; // 取消
+
+    var newName=input.value.trim();
+    if(!newName||newName===oldName)return;
+    if(folders.indexOf(newName)>=0){showToast("文件夹名已存在");return;}
+    // 更新 folders 数组
+    var idx=folders.indexOf(oldName);
+    if(idx>=0)folders[idx]=newName;
+    // 更新笔记中的 folder 字段
+    notes.forEach(function(n){if((n.folder||"默认")===oldName)n.folder=newName;});
+    // 更新当前选中
+    if(currentFolder===oldName)currentFolder=newName;
+    // 彻底重建 DOM 避免残留
+    saveFolders();
+    saveAllNotes();
+    renderFolders();
+    renderList();
+    showToast("✓ 已重命名：「"+oldName+"」→「"+newName+"」");
+  }
+
+  input.addEventListener("keydown",function(ev){
+    if(ev.key==="Enter"){ev.preventDefault();finish(true);}
+    if(ev.key==="Escape"){ev.preventDefault();finish(false);}
+  });
+  input.addEventListener("blur",function(){finish(true);});
+}
+
 function showMoveFolderModal(){
   var note=notes.find(function(n){return n.id===currentId;});
   if(!note)return;
@@ -718,7 +790,7 @@ function showMoveFolderModal(){
   }).join("");
   showModal("移动笔记到文件夹",
     '<label>目标文件夹</label><select id="modalInput" class="modal-select">'+opts+'</select>',
-    [{text:"取消"},{text:"移动",cls:"primary",action:function(){
+    [{text:"取消",action:function(){closeModal();}},{text:"移动",cls:"primary",action:function(){
       var sel=document.getElementById("modalInput").value;
       note.folder=sel;
       saveAllNotes();
