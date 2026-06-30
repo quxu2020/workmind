@@ -655,6 +655,16 @@ var JSONBIN_USER_ID="6a41defdda38895dfe0dcf54";
 var JSONBIN_USER_KEY="$2a$10$h5MSM8JcIdQLmy9phJjqou2VB1BdCzpWSM4WZBMeaepmGo1j0pr5a";
 var JSONBIN_USER_URL="https://api.jsonbin.io/v3/b/"+JSONBIN_USER_ID;
 
+// 简单字符串哈希（用于内容对比）
+function contentHash(s){
+  if(!s)return 0;
+  var h=0,i=0;
+  for(i=0;i<s.length;i++){
+    h=((h<<5)-h)+s.charCodeAt(i);h|=0;
+  }
+  return Math.abs(h).toString(36);
+}
+
 function setCloudStatus(s){
   var dot=document.getElementById("cloudDot");
   if(!dot)return;
@@ -1039,22 +1049,44 @@ function fullSync(onDone){
 
     // 2. 构建合并 Map：本地 + 云端按 id 取并集
     var map={};
-    var stats={localOnly:0,cloudOnly:0,sameId:0,cloudWins:0};
+    var stats={localOnly:0,cloudOnly:0,sameId:0,cloudWins:0,hashDiff:0};
 
-    notes.forEach(function(n){if(!n.folder)n.folder="默认";map[n.id]={note:n,src:"local"};});
+    // 先注册所有本地笔记
+    notes.forEach(function(n){
+      if(!n.folder)n.folder="默认";
+      map[n.id]={note:n,src:"local"};
+    });
+
+    // 与云端逐条比对
     cloudNotes.forEach(function(cn){
       if(!cn.folder)cn.folder="默认";
       var e=map[cn.id];
-      if(!e){map[cn.id]={note:cn,src:"cloud"};stats.cloudOnly++;return;}
+      if(!e){
+        map[cn.id]={note:cn,src:"cloud"};stats.cloudOnly++;return;
+      }
       stats.sameId++;
-      if((cn.time||0)>(e.note.time||0)){map[cn.id]={note:cn,src:"cloud"};stats.cloudWins++;}
+      // 时间戳判断
+      if((cn.time||0)>(e.note.time||0)){
+        map[cn.id]={note:cn,src:"cloud"};stats.cloudWins++;
+        return;
+      }
+      // 时间戳相同或本地更新 → 但内容可能不同！用哈希验证
+      var localHash=contentHash((e.note.content||"")+(e.note.title||""));
+      var cloudHash=contentHash((cn.content||"")+(cn.title||""));
+      if(localHash!==cloudHash){
+        console.log("[fullSync] hash diff: id="+cn.id+" localHash="+localHash+" cloudHash="+cloudHash+" → keep local");
+        stats.hashDiff++;
+        // 保持 map 中的本地版本（本地是用户正在编辑的权威版本）
+      }
+      // 否则：时间相同、哈希相同 → 保持不变
     });
-    // 统计本地独有
-    var localIds={};
-    cloudNotes.forEach(function(cn){localIds[cn.id]=true;});
-    notes.forEach(function(n){if(!localIds[n.id])stats.localOnly++;});
 
-    // 3. 重建 notes 数组
+    // 统计本地独有
+    var cloudIds={};
+    cloudNotes.forEach(function(cn){cloudIds[cn.id]=true;});
+    notes.forEach(function(n){if(!cloudIds[n.id])stats.localOnly++;});
+
+    // 3. 重建 notes 数组（以本地版本为权威）
     var merged=[];
     for(var k in map){if(map.hasOwnProperty(k))merged.push(map[k].note);}
     notes=merged;
@@ -1065,14 +1097,15 @@ function fullSync(onDone){
     folders=mf;
 
     console.log("[fullSync] result: localOnly="+stats.localOnly+" cloudOnly="+stats.cloudOnly+
-      " sameId="+stats.sameId+" cloudWins="+stats.cloudWins+" total="+notes.length);
+      " sameId="+stats.sameId+" cloudWins="+stats.cloudWins+" hashDiff="+stats.hashDiff+" total="+notes.length);
 
     // 5. 保存本地
     saveAllNotesLocal();
     saveFolders();
 
-    // 6. 始终推送到云端（确保云端=合并后的权威数据）
-    console.log("[fullSync] pushing merged data to cloud ("+notes.length+" notes)...");
+    // 6. 始终推送到云端（确保云端=本地权威版本）
+    console.log("[fullSync] pushing "+notes.length+" notes to cloud...");
+    notes.forEach(function(n){console.log("[fullSync]   push: id="+n.id+" title="+(n.title||"?").slice(0,30)+" folder="+(n.folder||"默认"));});
     doPushToCloud(notes,folders,cloudSec,cloudRem,0,function(){
       console.log("[fullSync] ✓ cloud push complete");
       _syncInProgress=false;
@@ -1080,7 +1113,6 @@ function fullSync(onDone){
     });
   }).catch(function(e){
     console.error("[fullSync] FETCH failed:",e.message);
-    // 拉取失败时：如果本地有数据，直接推送到云端
     if(notes.length>0){
       console.log("[fullSync] cloud unreachable, pushing local data blindly...");
       pushAllToCloud(0,onDone);
