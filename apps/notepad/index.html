@@ -664,6 +664,8 @@ var mobileTab="edit";
 var JSONBIN_USER_ID="6a41defdda38895dfe0dcf54";
 var JSONBIN_USER_KEY="$2a$10$h5MSM8JcIdQLmy9phJjqou2VB1BdCzpWSM4WZBMeaepmGo1j0pr5a";
 var JSONBIN_USER_URL="https://api.jsonbin.io/v3/b/"+JSONBIN_USER_ID;
+var JSONBIN_SPLIT_THRESHOLD=85000;    // 单次PUT上限(预留buffer)
+var OVERFLOW_BINS_KEY="notepad_overflow_bins_v1";
 
 // 简单字符串哈希（用于内容对比）
 function contentHash(s){
@@ -1055,7 +1057,35 @@ function fullSync(onDone){
     var cloudFolders=data.record.folders||[];
     var cloudSec=data.record.security||null;
     var cloudRem=data.record.reminders||[];
-    console.log("[fullSync] cloud="+cloudNotes.length+" notes, folders="+JSON.stringify(cloudFolders));
+    console.log("[fullSync] mainBin="+cloudNotes.length+" notes, folders="+JSON.stringify(cloudFolders));
+
+    // 拉取溢出Bin中的笔记
+    var ovBinIds=getOverflowBinIds();
+    if(ovBinIds.length>0){
+      console.log("[fullSync] fetching "+ovBinIds.length+" overflow bins...");
+      var fetchers=ovBinIds.map(function(id){
+        return fetch("https://api.jsonbin.io/v3/b/"+id+"/latest",{
+          method:"GET",headers:{"X-Master-Key":JSONBIN_USER_KEY}
+        }).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});
+      });
+      return Promise.all(fetchers).then(function(results){
+        results.forEach(function(d,i){
+          if(d&&d.record&&d.record.notes){
+            var ovNotes=d.record.notes||[];
+            console.log("[fullSync] overflowBin["+i+"] = "+ovNotes.length+" notes");
+            cloudNotes=cloudNotes.concat(ovNotes);
+          }
+        });
+        return {cloudNotes:cloudNotes,cloudFolders:cloudFolders,cloudSec:cloudSec,cloudRem:cloudRem};
+      });
+    }
+    return Promise.resolve({cloudNotes:cloudNotes,cloudFolders:cloudFolders,cloudSec:cloudSec,cloudRem:cloudRem});
+  }).then(function(cloud){
+    var cloudNotes=cloud.cloudNotes;
+    var cloudFolders=cloud.cloudFolders;
+    var cloudSec=cloud.cloudSec;
+    var cloudRem=cloud.cloudRem;
+    console.log("[fullSync] cloud total="+cloudNotes.length+" notes (main+overflow)");
 
     // 2. 构建合并 Map：本地 + 云端按 id 取并集
     var map={};
@@ -1165,14 +1195,20 @@ function pushAllToCloud(retryCount,onDone){
   });
 }
 
-function doPushToCloud(nl,fl,sec,rem,retry,onDone){
+function doPushToCloud(nl,fl,sec,rem,retry,onDone,_ovBinIds){
   if(!nl)nl=notes;if(!fl)fl=folders;
   if(retry===undefined)retry=0;
 
   var body=JSON.stringify({
     notes:nl,folders:fl,reminders:rem||[],security:sec||null,updatedAt:Date.now()
   });
-  console.log("[doPush] #"+(retry+1)+"/"+CLOUD_RETRY_MAX+" size:"+body.length+"b notes:"+nl.length);
+  var totalSize=body.length;
+  console.log("[doPush] #"+(retry+1)+"/"+CLOUD_RETRY_MAX+" size:"+totalSize+"b notes:"+nl.length);
+
+  // 超过阈值 → 分片：取前N条留在主Bin，剩余的放到溢出Bin
+  if(totalSize>JSONBIN_SPLIT_THRESHOLD && nl.length>1){
+    return splitAndPush(nl,fl,sec,rem,retry,onDone,_ovBinIds);
+  }
 
   fetch(JSONBIN_USER_URL,{
     method:"PUT",
@@ -1181,14 +1217,14 @@ function doPushToCloud(nl,fl,sec,rem,retry,onDone){
   }).then(function(r){
     if(!r.ok)return r.text().then(function(t){throw new Error("HTTP "+r.status+" "+t.slice(0,150));});
     setCloudStatus("online");cloudDirty=false;
-    console.log("[doPush] OK");
+    console.log("[doPush] OK  size:"+totalSize+"b");
     if(onDone)onDone();
   }).catch(function(e){
     console.error("[doPush] FAILED:",(e.message||e).slice(0,200));
     if(retry<CLOUD_RETRY_MAX-1){
       var d=CLOUD_RETRY_DELAY[retry]||3000;
       console.log("[doPush] retry in "+d+"ms");
-      setTimeout(function(){doPushToCloud(nl,fl,sec,rem,retry+1,onDone);},d);
+      setTimeout(function(){doPushToCloud(nl,fl,sec,rem,retry+1,onDone,_ovBinIds);},d);
     }else{
       setCloudStatus("offline");
       console.log("[doPush] all retries failed, will retry in 30s");
@@ -1196,6 +1232,134 @@ function doPushToCloud(nl,fl,sec,rem,retry,onDone){
       if(onDone)onDone();
     }
   });
+}
+
+// 分片推送：主Bin存metadata+第一块笔记，溢出Bin存剩余笔记
+function splitAndPush(nl,fl,sec,rem,retry,onDone,_ovBinIds){
+  // 找到合适的分割点：尽量让主Bin payload接近阈值
+  var mainNotes=[],overflow=[];
+  var mainSize=0;
+  // 先算 metadata 开销
+  var metaPayload=JSON.stringify({notes:[],folders:fl,reminders:rem||[],security:sec||null,updatedAt:Date.now()});
+  var metaOverhead=metaPayload.length;
+  var maxNotePayload=JSONBIN_SPLIT_THRESHOLD-metaOverhead-100; // 留100字节buffer
+
+  for(var i=0;i<nl.length;i++){
+    var nSize=JSON.stringify(nl[i]).length+1; // +1 for comma
+    if(mainSize+nSize<=maxNotePayload){
+      mainNotes.push(nl[i]);
+      mainSize+=nSize;
+    }else{
+      overflow.push(nl[i]);
+    }
+  }
+  if(overflow.length===0){
+    // 理论上不应该走到这里，但如果所有笔记正好能放下就直接推
+    console.log("[split] no overflow needed, pushing directly");
+    return doPushToCloud(nl,fl,sec,rem,retry,onDone);
+  }
+
+  console.log("[split] mainBin="+mainNotes.length+" notes, overflow="+overflow.length+" notes");
+
+  // Step 1: 推主Bin
+  var mainBody=JSON.stringify({notes:mainNotes,folders:fl,reminders:rem||[],security:sec||null,updatedAt:Date.now()});
+  fetch(JSONBIN_USER_URL,{
+    method:"PUT",
+    headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY,"X-Bin-Versioning":"false"},
+    body:mainBody
+  }).then(function(r){
+    if(!r.ok)return r.text().then(function(t){throw new Error("PUT main: HTTP "+r.status+" "+t.slice(0,120));});
+    console.log("[split] main bin OK  size:"+mainBody.length+"b");
+    // Step 2: 推溢出 Bin（复用已有Bin或创建新的）
+    return pushOverflowBins(overflow,_ovBinIds||getOverflowBinIds());
+  }).then(function(finalOvIds){
+    saveOverflowBinIds(finalOvIds);
+    setCloudStatus("online");cloudDirty=false;
+    console.log("[split] ✓ all bins pushed");
+    if(onDone)onDone();
+  }).catch(function(e){
+    console.error("[split] FAILED:",(e.message||e).slice(0,200));
+    if(retry<CLOUD_RETRY_MAX-1){
+      var d=CLOUD_RETRY_DELAY[retry]||3000;
+      console.log("[split] retry in "+d+"ms");
+      setTimeout(function(){splitAndPush(nl,fl,sec,rem,retry+1,onDone,_ovBinIds);},d);
+    }else{
+      setCloudStatus("offline");
+      console.log("[split] all retries failed, will retry in 30s");
+      scheduleCloudRetry(nl,fl,sec,rem);
+      if(onDone)onDone();
+    }
+  });
+}
+
+// 推送溢出Bin：将剩余notes分块，每块推到一个独立Bin
+// 返回所有溢出Bin ID数组
+function pushOverflowBins(overflowNotes,ovBinIds,idx,accIds){
+  if(accIds===undefined)accIds=[];
+  if(idx===undefined)idx=0;
+  if(idx>=overflowNotes.length){
+    // 清理不再需要的旧溢出Bin
+    if(ovBinIds&&ovBinIds.length>0){
+      deleteOverflowBins(ovBinIds);
+    }
+    return Promise.resolve(accIds);
+  }
+
+  // 把剩余笔记打包成一个不超过阈值的chunk
+  var chunk=[];
+  var chunkSize=0;
+  var ovPayload=JSON.stringify({notes:[]});
+  var ovOverhead=ovPayload.length;
+  var maxChunk=JSONBIN_SPLIT_THRESHOLD-ovOverhead-100;
+  var i=idx;
+
+  for(;i<overflowNotes.length;i++){
+    var ns=JSON.stringify(overflowNotes[i]).length+1;
+    if(chunkSize+ns<=maxChunk){
+      chunk.push(overflowNotes[i]);
+      chunkSize+=ns;
+    }else{
+      break;
+    }
+  }
+
+  var body=JSON.stringify({notes:chunk,updatedAt:Date.now()});
+  console.log("[split] overflow chunk "+chunk.length+" notes, size:"+body.length+"b, noteIdx:"+idx+"-"+i);
+
+  // 创建新的溢出Bin
+  return fetch("https://api.jsonbin.io/v3/b",{
+    method:"POST",
+    headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY},
+    body:body
+  }).then(function(r){
+    if(!r.ok)return r.text().then(function(t){throw new Error("POST overflow: HTTP "+r.status+" "+t.slice(0,120));});
+    return r.json();
+  }).then(function(d){
+    var newId=d.metadata?d.metadata.id:d.id;
+    console.log("[split] created overflow bin: "+newId);
+    accIds.push(newId);
+    // 继续推剩余笔记
+    return pushOverflowBins(overflowNotes,ovBinIds,i,accIds);
+  });
+}
+
+// 删除不再需要的溢出Bin
+function deleteOverflowBins(ids){
+  ids.forEach(function(id){
+    fetch("https://api.jsonbin.io/v3/b/"+id,{
+      method:"DELETE",
+      headers:{"X-Master-Key":JSONBIN_USER_KEY}
+    }).then(function(r){
+      console.log("[split] deleted old overflow bin: "+id+" status:"+r.status);
+    }).catch(function(){});
+  });
+}
+
+function getOverflowBinIds(){
+  try{return JSON.parse(localStorage.getItem(OVERFLOW_BINS_KEY)||"[]");}catch(e){return [];}
+}
+function saveOverflowBinIds(ids){
+  localStorage.setItem(OVERFLOW_BINS_KEY,JSON.stringify(ids));
 }
 
 function scheduleCloudRetry(nl,fl,sec,rem){
