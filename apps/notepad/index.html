@@ -706,7 +706,14 @@ function renderFolders(){
 
 function selectFolder(name){
   currentFolder=name;
-  document.getElementById("noteSectionTitle").textContent=name==="__all__"?"📋 全部笔记":"📋 "+name;
+  var headerEl=document.querySelector(".note-list-header");
+  if(name==="__all__"){
+    // 已在文件夹列表显示"全部笔记"，隐藏重复标题
+    headerEl.style.display="none";
+  }else{
+    headerEl.style.display="flex";
+    document.getElementById("noteSectionTitle").textContent="📋 "+name;
+  }
   renderFolders();
   renderList();
   // 如果当前笔记不在该文件夹内，选第一个
@@ -1587,6 +1594,8 @@ pullNotesFromCloud(function(cloudNotes){
   }
   initAfterCloudSync();
   if(!cloudNotes||cloudNotes.length===0){pushAllToCloud();}
+  // 初始化文件夹选中状态（隐藏重复标题）
+  selectFolder(currentFolder||"__all__");
 });
 
 // 点击背景关闭移动端列表
