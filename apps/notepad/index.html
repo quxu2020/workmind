@@ -664,7 +664,7 @@ var mobileTab="edit";
 var JSONBIN_USER_ID="6a41defdda38895dfe0dcf54";
 var JSONBIN_USER_KEY="$2a$10$h5MSM8JcIdQLmy9phJjqou2VB1BdCzpWSM4WZBMeaepmGo1j0pr5a";
 var JSONBIN_USER_URL="https://api.jsonbin.io/v3/b/"+JSONBIN_USER_ID;
-var JSONBIN_SPLIT_THRESHOLD=85000;    // 单次PUT上限(预留buffer)
+var JSONBIN_SPLIT_THRESHOLD=75000;    // UTF-8字节数阈值(预留25KB buffer给中文3字节/字符)<｜end▁of▁thinking｜>
 var OVERFLOW_BINS_KEY="notepad_overflow_bins_v1";
 
 // 简单字符串哈希（用于内容对比）
@@ -1202,11 +1202,11 @@ function doPushToCloud(nl,fl,sec,rem,retry,onDone,_ovBinIds){
   var body=JSON.stringify({
     notes:nl,folders:fl,reminders:rem||[],security:sec||null,updatedAt:Date.now()
   });
-  var totalSize=body.length;
-  console.log("[doPush] #"+(retry+1)+"/"+CLOUD_RETRY_MAX+" size:"+totalSize+"b notes:"+nl.length);
+  var bodyBytes=new TextEncoder().encode(body).length;
+  console.log("[doPush] #"+(retry+1)+"/"+CLOUD_RETRY_MAX+" chars:"+body.length+" utf8bytes:"+bodyBytes+" notes:"+nl.length);
 
   // 超过阈值 → 分片：取前N条留在主Bin，剩余的放到溢出Bin
-  if(totalSize>JSONBIN_SPLIT_THRESHOLD && nl.length>1){
+  if(bodyBytes>JSONBIN_SPLIT_THRESHOLD && nl.length>1){
     return splitAndPush(nl,fl,sec,rem,retry,onDone,_ovBinIds);
   }
 
@@ -1217,7 +1217,7 @@ function doPushToCloud(nl,fl,sec,rem,retry,onDone,_ovBinIds){
   }).then(function(r){
     if(!r.ok)return r.text().then(function(t){throw new Error("HTTP "+r.status+" "+t.slice(0,150));});
     setCloudStatus("online");cloudDirty=false;
-    console.log("[doPush] OK  size:"+totalSize+"b");
+    console.log("[doPush] OK  utf8bytes:"+bodyBytes);
     if(onDone)onDone();
   }).catch(function(e){
     console.error("[doPush] FAILED:",(e.message||e).slice(0,200));
@@ -1236,30 +1236,32 @@ function doPushToCloud(nl,fl,sec,rem,retry,onDone,_ovBinIds){
 
 // 分片推送：主Bin存metadata+第一块笔记，溢出Bin存剩余笔记
 function splitAndPush(nl,fl,sec,rem,retry,onDone,_ovBinIds){
-  // 找到合适的分割点：尽量让主Bin payload接近阈值
+  // 找到合适的分割点：用UTF-8字节数计算
   var mainNotes=[],overflow=[];
   var mainSize=0;
-  // 先算 metadata 开销
+  // 先算 metadata 开销（UTF-8字节数）
   var metaPayload=JSON.stringify({notes:[],folders:fl,reminders:rem||[],security:sec||null,updatedAt:Date.now()});
-  var metaOverhead=metaPayload.length;
-  var maxNotePayload=JSONBIN_SPLIT_THRESHOLD-metaOverhead-100; // 留100字节buffer
+  var metaOverhead=new TextEncoder().encode(metaPayload).length;
+  var maxNotePayload=JSONBIN_SPLIT_THRESHOLD-metaOverhead-500; // 留buffer
 
   for(var i=0;i<nl.length;i++){
-    var nSize=JSON.stringify(nl[i]).length+1; // +1 for comma
-    if(mainSize+nSize<=maxNotePayload){
+    var nJSON=JSON.stringify(nl[i]);
+    var nBytes=new TextEncoder().encode(nJSON).length+2; // +2 for comma/bracket overhead
+    if(mainSize+nBytes<=maxNotePayload){
       mainNotes.push(nl[i]);
-      mainSize+=nSize;
+      mainSize+=nBytes;
     }else{
       overflow.push(nl[i]);
     }
   }
   if(overflow.length===0){
-    // 理论上不应该走到这里，但如果所有笔记正好能放下就直接推
     console.log("[split] no overflow needed, pushing directly");
     return doPushToCloud(nl,fl,sec,rem,retry,onDone);
   }
 
-  console.log("[split] mainBin="+mainNotes.length+" notes, overflow="+overflow.length+" notes");
+  var mainBody=JSON.stringify({notes:mainNotes,folders:fl,reminders:rem||[],security:sec||null,updatedAt:Date.now()});
+  var mainBytes=new TextEncoder().encode(mainBody).length;
+  console.log("[split] mainBin="+mainNotes.length+" notes("+mainBytes+"b utf8), overflow="+overflow.length+" notes");
 
   // Step 1: 推主Bin
   var mainBody=JSON.stringify({notes:mainNotes,folders:fl,reminders:rem||[],security:sec||null,updatedAt:Date.now()});
@@ -1305,26 +1307,28 @@ function pushOverflowBins(overflowNotes,ovBinIds,idx,accIds){
     return Promise.resolve(accIds);
   }
 
-  // 把剩余笔记打包成一个不超过阈值的chunk
+  // 把剩余笔记打包成一个不超过阈值的chunk（UTF-8字节数）
   var chunk=[];
   var chunkSize=0;
   var ovPayload=JSON.stringify({notes:[]});
-  var ovOverhead=ovPayload.length;
-  var maxChunk=JSONBIN_SPLIT_THRESHOLD-ovOverhead-100;
+  var ovOverhead=new TextEncoder().encode(ovPayload).length;
+  var maxChunk=JSONBIN_SPLIT_THRESHOLD-ovOverhead-500;
   var i=idx;
 
   for(;i<overflowNotes.length;i++){
-    var ns=JSON.stringify(overflowNotes[i]).length+1;
-    if(chunkSize+ns<=maxChunk){
+    var nJSON=JSON.stringify(overflowNotes[i]);
+    var nBytes=new TextEncoder().encode(nJSON).length+2;
+    if(chunkSize+nBytes<=maxChunk){
       chunk.push(overflowNotes[i]);
-      chunkSize+=ns;
+      chunkSize+=nBytes;
     }else{
       break;
     }
   }
 
   var body=JSON.stringify({notes:chunk,updatedAt:Date.now()});
-  console.log("[split] overflow chunk "+chunk.length+" notes, size:"+body.length+"b, noteIdx:"+idx+"-"+i);
+  var bodyBytes=new TextEncoder().encode(body).length;
+  console.log("[split] overflow chunk "+chunk.length+" notes, utf8:"+bodyBytes+"b, noteIdx:"+idx+"-"+i);
 
   // 创建新的溢出Bin
   return fetch("https://api.jsonbin.io/v3/b",{
