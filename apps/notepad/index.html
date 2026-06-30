@@ -1040,16 +1040,29 @@ function saveAllNotes(){
 // 推送笔记+文件夹+提醒到云端（原子操作）
 function pushAllToCloud(){
   setCloudStatus("syncing");
-  var remList=[];
-  try{remList=JSON.parse(localStorage.getItem("reminders_v1")||"[]");}catch(e){}
-  var data={notes:notes,folders:folders,reminders:remList,updatedAt:Date.now()};
-  fetch(JSONBIN_USER_URL,{
-    method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY,"X-Bin-Versioning":"false"},
-    body:JSON.stringify(data)
+  // 先拉取现有云端数据，保留 security 字段
+  fetch(JSONBIN_USER_URL+"/latest",{
+    method:"GET",headers:{"X-Master-Key":JSONBIN_USER_KEY}
+  }).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(existing){
+    var remList=[];
+    try{remList=JSON.parse(localStorage.getItem("reminders_v1")||"[]");}catch(e){}
+    var cloudSecurity=null;
+    if(existing&&existing.record){cloudSecurity=existing.record.security||null;}
+    var data={notes:notes,folders:folders,reminders:remList,security:cloudSecurity,updatedAt:Date.now()};
+    var jsonStr=JSON.stringify(data);
+    console.log("[pushAllToCloud] payload size:",jsonStr.length,"bytes, notes:",notes.length,"security:",!!cloudSecurity);
+    return fetch(JSONBIN_USER_URL,{
+      method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY,"X-Bin-Versioning":"false"},
+      body:jsonStr
+    });
   }).then(function(r){
-    if(!r.ok)throw new Error("HTTP "+r.status);
+    console.log("[pushAllToCloud] response status:",r.status);
+    if(!r.ok)return r.text().then(function(t){throw new Error("HTTP "+r.status+" body:"+t.slice(0,200));});
     setCloudStatus("online");
-  }).catch(function(){setCloudStatus("offline");});
+  }).catch(function(e){
+    console.error("[pushAllToCloud] FAILED:",e.message||e);
+    setCloudStatus("offline");
+  });
 }
 
 function syncRemindersToCloud(reminders){
@@ -1059,19 +1072,24 @@ function syncRemindersToCloud(reminders){
   }).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(existing){
     var cloudNotes=notes;
     var cloudFolders=folders;
+    var cloudSecurity=null;
     if(existing&&existing.record){
       cloudNotes=existing.record.notes||notes;
       cloudFolders=existing.record.folders||folders;
+      cloudSecurity=existing.record.security||null;
     }
-    var data={notes:cloudNotes,folders:cloudFolders,reminders:reminders,updatedAt:Date.now()};
+    var data={notes:cloudNotes,folders:cloudFolders,reminders:reminders,security:cloudSecurity,updatedAt:Date.now()};
     return fetch(JSONBIN_USER_URL,{
       method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY,"X-Bin-Versioning":"false"},
       body:JSON.stringify(data)
     });
   }).then(function(r){
-    if(r&&!r.ok)throw new Error("HTTP "+r.status);
+    if(r&&!r.ok)return r.text().then(function(t){throw new Error("HTTP "+r.status+" body:"+t.slice(0,200));});
     setCloudStatus("online");
-  }).catch(function(){setCloudStatus("offline");});
+  }).catch(function(e){
+    console.error("[syncRemindersToCloud] FAILED:",e.message||e);
+    setCloudStatus("offline");
+  });
 }
 
 // ======== 加载 ========
