@@ -47,6 +47,8 @@ body{
 .topbar .btn.export:hover{background:rgba(16,185,129,.25);}
 .topbar .btn.import{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.25);color:#fcd34d;}
 .topbar .btn.import:hover{background:rgba(245,158,11,.2);}
+.topbar .btn.backup{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.25);color:#93c5fd;}
+.topbar .btn.backup:hover{background:rgba(59,130,246,.2);}
 
 /* 云端状态 */
 .cloud-dot{
@@ -429,6 +431,7 @@ body{
 .empty-state .empty-icon{font-size:48px;}
 .empty-state .empty-text{font-size:14px;}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
 
@@ -438,6 +441,7 @@ body{
   <button class="btn" id="listToggle" onclick="toggleList()">☰ 列表</button>
   <button class="btn import" onclick="triggerImport()" title="导入 .md 文件">📥 导入</button>
   <button class="btn export" onclick="exportCurrentNote()" title="导出当前笔记">📤 导出</button>
+  <button class="btn backup" onclick="backupAllNotes()" title="备份全部笔记为 ZIP">📦 备份</button>
   <button class="btn sync" onclick="fullSync(function(){showToast('✅ 同步完成')})" title="本地↔云端双向同步">☁️ 云端</button>
   <button class="btn save" onclick="saveNote()">💾 保存</button>
   <div class="cloud-dot" id="cloudDot" title="云端"></div>
@@ -1421,6 +1425,92 @@ function downloadMD(note){
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   showToast("✓ 已下载: "+filename);
+}
+
+// ======== 一键备份全部笔记为 ZIP ========
+function backupAllNotes(){
+  if(notes.length===0){showToast("没有笔记可备份");return;}
+  
+  // 先保存当前正在编辑的笔记
+  if(currentId){
+    var cur=notes.find(function(n){return n.id===currentId;});
+    if(cur){
+      cur.content=document.getElementById("editor").value;
+      autoUpdateTitle();
+    }
+  }
+  saveAllNotesLocal();
+  
+  // 构建文件夹→笔记列表的映射
+  var folderMap={};
+  notes.forEach(function(n){
+    var f=n.folder||"默认";
+    if(!folderMap[f])folderMap[f]=[];
+    folderMap[f].push(n);
+  });
+  
+  var folderNames=Object.keys(folderMap).sort();
+  var totalNotes=notes.length;
+  
+  console.log("[backup] "+totalNotes+" notes in "+folderNames.length+" folders: "+JSON.stringify(folderNames));
+  showToast("正在打包 "+totalNotes+" 篇笔记...");
+  
+  var zip=new JSZip();
+  
+  // 遍历每个文件夹，把笔记作为 .md 文件放入对应目录
+  folderNames.forEach(function(folder){
+    var folderNotes=folderMap[folder];
+    var folderPath=folder==="默认"?"":"__"+folder+"/"; // 默认文件夹放在根目录
+    var folderZip=folder==="默认"?zip:zip.folder(folder);
+    
+    // 去重：同文件夹下同名笔记加序号
+    var nameCount={};
+    folderNotes.forEach(function(n){
+      var title=n.title||"未命名笔记";
+      var filename=title.replace(/[<>:"/\\|?*]/g,"_").slice(0,60);
+      if(nameCount[filename]){
+        nameCount[filename]++;
+        filename=filename+"_"+nameCount[filename];
+      }else{
+        nameCount[filename]=1;
+      }
+      filename+=".md";
+      
+      // 构建 Markdown 内容（含元数据头部）
+      var md="---\n";
+      md+="title: "+title+"\n";
+      md+="folder: "+folder+"\n";
+      md+="date: "+new Date(n.time||Date.now()).toISOString().slice(0,10)+"\n";
+      md+="---\n\n";
+      md+=n.content||"";
+      
+      folderZip.file(filename, md);
+      console.log("[backup]   "+folder+"/"+filename);
+    });
+  });
+  
+  // 生成 ZIP 并下载
+  zip.generateAsync({type:"blob",compression:"DEFLATE",compressionOptions:{level:6}}).then(function(blob){
+    var now=new Date();
+    var ts=now.getFullYear()+"-"+
+      String(now.getMonth()+1).padStart(2,"0")+"-"+
+      String(now.getDate()).padStart(2,"0");
+    var zipName="workmind-backup-"+ts+".zip";
+    
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement("a");
+    a.href=url;a.download=zipName;
+    document.body.appendChild(a);a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    var sizeMB=(blob.size/1024/1024).toFixed(2);
+    showToast("✅ 已备份: "+totalNotes+" 篇笔记 ("+sizeMB+" MB) → "+zipName);
+    console.log("[backup] DONE: "+zipName+" size="+blob.size+"b");
+  }).catch(function(e){
+    console.error("[backup] zip generate failed:",e);
+    showToast("❌ 备份失败: "+e.message);
+  });
 }
 
 // ======== Markdown 渲染 ========
