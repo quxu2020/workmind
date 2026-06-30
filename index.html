@@ -770,20 +770,26 @@ function pushSecurityToCloud(sec){
   fetch(JSONBIN_USER_URL+"/latest",{
     method:"GET",headers:{"X-Master-Key":JSONBIN_USER_KEY}
   }).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(existing){
-    var cloudNotes=[],cloudReminders=[];
+    var cloudNotes=[],cloudReminders=[],cloudFolders=null;
     if(existing&&existing.record){
       cloudNotes=existing.record.notes||[];
       cloudReminders=existing.record.reminders||[];
+      cloudFolders=existing.record.folders||null;
     }
-    var data={notes:cloudNotes,reminders:cloudReminders,security:sec,updatedAt:Date.now()};
+    var data={notes:cloudNotes,reminders:cloudReminders,folders:cloudFolders,security:sec,updatedAt:Date.now()};
+    console.log("[pushSecurityToCloud] payload notes:",cloudNotes.length,"folders:",!!cloudFolders);
     return fetch(JSONBIN_USER_URL,{
       method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY,"X-Bin-Versioning":"false"},
       body:JSON.stringify(data)
     });
   }).then(function(r){
+    console.log("[pushSecurityToCloud] response:",r.status);
     if(!r.ok)throw new Error("HTTP "+r.status);
     setCloudStatus("online");
-  }).catch(function(){setCloudStatus("offline");});
+  }).catch(function(e){
+    console.error("[pushSecurityToCloud] FAILED:",e.message||e);
+    setCloudStatus("offline");
+  });
 }
 
 // 迁移旧版数据
