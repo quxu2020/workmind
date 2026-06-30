@@ -673,7 +673,8 @@ function pullFromCloud(){
     }
     renderReminders();
     setCloudStatus("online");
-  }).catch(function(){
+  }).catch(function(e){
+    console.error("[pullFromCloud] FAILED:",e.message);
     setCloudStatus("offline");
     renderReminders();
   });

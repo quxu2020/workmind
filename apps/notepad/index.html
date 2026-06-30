@@ -1000,7 +1000,7 @@ function getFilteredNotes(){
   return notes.filter(function(n){return (n.folder||"默认")===currentFolder;});
 }
 
-// ======== 云端同步（包含文件夹） ========
+// ======== 云端同步（合并策略：以时间为准，保留最新版本） ========
 function pullNotesFromCloud(cb){
   setCloudStatus("syncing");
   fetch(JSONBIN_USER_URL+"/latest",{
@@ -1010,18 +1010,47 @@ function pullNotesFromCloud(cb){
     return r.json();
   }).then(function(data){
     var cloudNotes=data.record.notes||[];
-    var cloudFolders=data.record.folders||null;
-    if(cloudNotes.length>0){
-      notes=cloudNotes;
-      // 迁移没有 folder 字段的旧笔记
-      notes.forEach(function(n){if(!n.folder)n.folder="默认";});
+    var cloudFolders=data.record.folders||[];
+    var changed=false;
+
+    // 1. 合并文件夹：本地 + 云端取并集
+    var mergedFolders=folders.slice();
+    cloudFolders.forEach(function(f){
+      if(mergedFolders.indexOf(f)<0)mergedFolders.push(f);
+    });
+    if(mergedFolders.join(",")!==folders.join(",")){
+      folders=mergedFolders;
+      changed=true;
     }
-    if(cloudFolders&&cloudFolders.length>0)folders=cloudFolders;
+
+    // 2. 构建本地笔记 Map
+    var localMap={};
+    notes.forEach(function(n){localMap[n.id]=n;});
+
+    // 3. 合并笔记：云端覆盖本地当且仅当云端时间更新
+    cloudNotes.forEach(function(cn){
+      if(!cn.folder)cn.folder="默认";
+      var local=localMap[cn.id];
+      if(!local||(cn.time||0)>=(local.time||0)){
+        localMap[cn.id]=cn;
+        changed=true;
+      }
+    });
+
+    // 4. 重建 notes 数组
+    var mergedNotes=[];
+    for(var k in localMap){if(localMap.hasOwnProperty(k))mergedNotes.push(localMap[k]);}
+    notes=mergedNotes;
     saveAllNotesLocal();
     saveFolders();
+
+    // 5. 将合并结果回推云端（修复云端缺失的数据）
+    if(changed)pushAllToCloud();
+
     setCloudStatus("online");
     if(cb)cb(cloudNotes);
-  }).catch(function(){
+  }).catch(function(e){
+    console.error("[pullNotesFromCloud] FAILED:",e.message);
     setCloudStatus("offline");
     if(cb)cb(null);
   });
