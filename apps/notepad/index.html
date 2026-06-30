@@ -60,6 +60,25 @@ body{
 .cloud-dot.syncing{background:#f59e0b;animation:cloudPulse 1s infinite;}
 @keyframes cloudPulse{0%,100%{opacity:1;}50%{opacity:.3;}}
 
+/* 云端菜单 */
+.cloud-menu{
+  position:absolute;top:46px;right:10px;
+  background:rgba(20,20,35,.98);border:1px solid rgba(99,102,241,.25);
+  border-radius:8px;padding:4px;min-width:160px;
+  box-shadow:0 10px 30px rgba(0,0,0,.4);
+  display:none;flex-direction:column;z-index:100;
+}
+.cloud-menu.show{display:flex;}
+.cloud-menu-item{
+  padding:8px 12px;border-radius:6px;cursor:pointer;
+  font-size:12px;color:#c7d2fe;white-space:nowrap;
+  transition:background .12s;
+}
+.cloud-menu-item:hover{background:rgba(99,102,241,.2);}
+.cloud-menu-item.danger{color:#fca5a5;}
+.cloud-menu-item.danger:hover{background:rgba(239,68,68,.2);}
+.cloud-menu-divider{height:1px;background:rgba(99,102,241,.15);margin:4px 0;}
+
 /* 主体布局 */
 .main{
   flex:1;display:flex;overflow:hidden;
@@ -85,7 +104,6 @@ body{
 .folder-header{
   padding:10px 12px;display:flex;align-items:center;justify-content:space-between;
   flex-shrink:0;
-}
 }
 .folder-header span{font-size:12px;color:#818cf8;font-weight:600;}
 .folder-header button{
@@ -448,9 +466,14 @@ body{
   <button class="btn import" onclick="triggerImport()" title="导入 .md 文件">📥 导入</button>
   <button class="btn export" onclick="exportCurrentNote()" title="导出当前笔记">📤 导出</button>
   <button class="btn backup" onclick="backupAllNotes()" title="备份全部笔记为 ZIP">📦 备份</button>
-  <button class="btn sync" onclick="fullSync(function(){showToast('✅ 同步完成')})" title="本地↔云端双向同步">☁️ 云端</button>
+  <button class="btn sync" onclick="toggleCloudMenu(event)" title="云端同步选项">☁️ 云端</button>
   <button class="btn save" onclick="saveNote()">💾 保存</button>
   <div class="cloud-dot" id="cloudDot" title="云端"></div>
+</div>
+<div class="cloud-menu" id="cloudMenu">
+  <div class="cloud-menu-item" onclick="fullSync(function(){showToast('✅ 双向同步完成');hideCloudMenu();})">🔄 双向同步</div>
+  <div class="cloud-menu-item" onclick="forcePushToCloud()">⬆️ 以本地覆盖云端</div>
+  <div class="cloud-menu-item danger" onclick="forcePullFromCloud()">⬇️ 以云端覆盖本地</div>
 </div>
 
 <!-- 移动端快捷操作 -->
@@ -820,8 +843,13 @@ function startRenameFolder(e,oldName){
     // 更新 folders 数组
     var idx=folders.indexOf(oldName);
     if(idx>=0)folders[idx]=newName;
-    // 更新笔记中的 folder 字段
-    notes.forEach(function(n){if((n.folder||"默认")===oldName)n.folder=newName;});
+    // 更新笔记中的 folder 字段并更新时间戳
+    notes.forEach(function(n){
+      if((n.folder||"默认")===oldName){
+        n.folder=newName;
+        n.time=Date.now(); // 文件夹变更视为更新，确保能同步覆盖其他设备
+      }
+    });
     // 更新当前选中
     if(currentFolder===oldName)currentFolder=newName;
     // 彻底重建 DOM 避免残留
@@ -851,6 +879,7 @@ function showMoveFolderModal(){
     [{text:"取消",action:function(){closeModal();}},{text:"移动",cls:"primary",action:function(){
       var sel=document.getElementById("modalInput").value;
       note.folder=sel;
+      note.time=Date.now(); // 文件夹变更视为更新，确保能同步覆盖其他设备
       saveAllNotes();
       if(currentFolder!=="__all__"&&sel!==currentFolder)selectFolder("__all__");
       else{renderFolders();renderList();}
@@ -923,6 +952,7 @@ function onFolderDrop(e, folderName){
   var oldFolder=note.folder||"默认";
   if(oldFolder===targetFolder){dragNoteId=null;return;} // 同一文件夹不移动
   note.folder=targetFolder;
+  note.time=Date.now(); // 文件夹变更视为更新，确保能同步覆盖其他设备
   saveAllNotes();
   // 如果当前视图是具体文件夹且目标不同，切回全部
   if(currentFolder!=="__all__"&&oldFolder===currentFolder&&targetFolder!==currentFolder){
@@ -1005,6 +1035,7 @@ function handleTouchEnd(e){
         var oldFolder=note.folder||"默认";
         if(oldFolder!==targetFolder){
           note.folder=targetFolder;
+          note.time=Date.now(); // 文件夹变更视为更新，确保能同步覆盖其他设备
           saveAllNotes();
           if(currentFolder!=="__all__"&&oldFolder===currentFolder&&targetFolder!==currentFolder){
             selectFolder("__all__");
@@ -1110,15 +1141,18 @@ function fullSync(onDone){
         map[cn.id]={note:cn,src:"cloud"};stats.cloudWins++;
         return;
       }
-      // 时间戳相同或本地更新 → 但内容可能不同！用哈希验证
+      // 时间戳相同或本地更新 → 但内容/文件夹可能不同！用哈希验证
       var localHash=contentHash((e.note.content||"")+(e.note.title||""));
       var cloudHash=contentHash((cn.content||"")+(cn.title||""));
       if(localHash!==cloudHash){
         console.log("[fullSync] hash diff: id="+cn.id+" localHash="+localHash+" cloudHash="+cloudHash+" → keep local");
         stats.hashDiff++;
         // 保持 map 中的本地版本（本地是用户正在编辑的权威版本）
+      }else if((e.note.folder||"默认")!==(cn.folder||"默认")){
+        // 内容相同但 folder 不同：保留本地，并记录冲突日志
+        console.log("[fullSync] folder conflict: id="+cn.id+" localFolder="+(e.note.folder||"默认")+" cloudFolder="+(cn.folder||"默认")+" → keep local");
       }
-      // 否则：时间相同、哈希相同 → 保持不变
+      // 否则：时间相同、哈希相同、folder 相同 → 保持不变
     });
 
     // 统计本地独有
@@ -1146,8 +1180,12 @@ function fullSync(onDone){
     // 6. 始终推送到云端（确保云端=本地权威版本）
     console.log("[fullSync] pushing "+notes.length+" notes to cloud...");
     notes.forEach(function(n){console.log("[fullSync]   push: id="+n.id+" title="+(n.title||"?").slice(0,30)+" folder="+(n.folder||"默认"));});
-    doPushToCloud(notes,folders,cloudSec,cloudRem,0,function(){
-      console.log("[fullSync] ✓ cloud push complete");
+    doPushToCloud(notes,folders,cloudSec,cloudRem,0,function(ok){
+      if(ok){
+        console.log("[fullSync] ✓ cloud push complete");
+      }else{
+        console.log("[fullSync] ⚠ cloud push failed, status offline, will auto-retry");
+      }
       _syncInProgress=false;
       if(onDone)onDone();
     });
@@ -1195,6 +1233,93 @@ function pushAllToCloud(retryCount,onDone){
   });
 }
 
+// 强制以本地覆盖云端：更新时间戳后推送，确保本地权威
+function forcePushToCloud(){
+  hideCloudMenu();
+  if(!confirm("确定用当前本地笔记和文件夹覆盖云端？这会替换云端数据。"))return;
+  setCloudStatus("syncing");
+  console.log("[forcePush] bumping all note times and pushing to cloud...");
+  var now=Date.now();
+  notes.forEach(function(n){n.time=now;});
+  saveAllNotesLocal();
+  pushAllToCloud(0,function(ok){
+    if(ok){
+      showToast("✅ 已用本地覆盖云端");
+      renderFolders();renderList();
+    }else{
+      showToast("❌ 覆盖云端失败，请检查网络");
+    }
+  });
+}
+
+// 强制以云端覆盖本地：拉取云端完整数据并替换本地
+function forcePullFromCloud(){
+  hideCloudMenu();
+  if(!confirm("确定用云端数据覆盖本地？本地未同步的修改会丢失。"))return;
+  setCloudStatus("syncing");
+  console.log("[forcePull] fetching cloud and overwriting local...");
+  fetch(JSONBIN_USER_URL+"/latest",{
+    method:"GET",headers:{"X-Master-Key":JSONBIN_USER_KEY}
+  }).then(function(r){
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    return r.json();
+  }).then(function(data){
+    var cloudNotes=data.record.notes||[];
+    var cloudFolders=data.record.folders||[];
+    var ovBinIds=data.record.overflowBins||getOverflowBinIds();
+    if(ovBinIds.length>0){
+      return Promise.all(ovBinIds.map(function(id){
+        return fetch("https://api.jsonbin.io/v3/b/"+id+"/latest",{
+          method:"GET",headers:{"X-Master-Key":JSONBIN_USER_KEY}
+        }).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});
+      })).then(function(results){
+        results.forEach(function(d){if(d&&d.record&&d.record.notes)cloudNotes=cloudNotes.concat(d.record.notes);});
+        return {notes:cloudNotes,folders:cloudFolders};
+      });
+    }
+    return {notes:cloudNotes,folders:cloudFolders};
+  }).then(function(cloud){
+    notes=cloud.notes.map(function(n){if(!n.folder)n.folder="默认";return n;});
+    folders=cloud.folders.length>0?cloud.folders:["默认"];
+    saveAllNotesLocal();
+    saveFolders();
+    renderFolders();
+    if(currentId && !notes.find(function(n){return n.id===currentId;})){
+      currentId=notes.length>0?notes[0].id:null;
+    }
+    if(currentId){
+      var note=notes.find(function(n){return n.id===currentId;});
+      document.getElementById("editor").value=note?note.content||"":"";
+      document.getElementById("noteTitle").textContent=note?(note.title||"未命名笔记"):"未命名笔记";
+    }
+    renderList();updatePreview();
+    setCloudStatus("online");
+    showToast("✅ 已用云端覆盖本地");
+  }).catch(function(e){
+    console.error("[forcePull] FAILED:",e.message||e);
+    setCloudStatus("offline");
+    showToast("❌ 拉取云端失败: "+(e.message||e));
+  });
+}
+
+function toggleCloudMenu(e){
+  e.stopPropagation();
+  var m=document.getElementById("cloudMenu");
+  m.classList.toggle("show");
+}
+function hideCloudMenu(){
+  var m=document.getElementById("cloudMenu");
+  if(m)m.classList.remove("show");
+}
+
+// 点击空白处关闭云端菜单
+document.addEventListener("click",function(e){
+  var m=document.getElementById("cloudMenu");
+  if(m&&m.classList.contains("show")&&!e.target.closest(".cloud-menu")&&!e.target.closest(".btn.sync")){
+    hideCloudMenu();
+  }
+});
+
 function doPushToCloud(nl,fl,sec,rem,retry,onDone,_ovBinIds){
   if(!nl)nl=notes;if(!fl)fl=folders;
   if(retry===undefined)retry=0;
@@ -1218,7 +1343,7 @@ function doPushToCloud(nl,fl,sec,rem,retry,onDone,_ovBinIds){
     if(!r.ok)return r.text().then(function(t){throw new Error("HTTP "+r.status+" "+t.slice(0,150));});
     setCloudStatus("online");cloudDirty=false;
     console.log("[doPush] OK  utf8bytes:"+bodyBytes);
-    if(onDone)onDone();
+    if(onDone)onDone(true);
   }).catch(function(e){
     console.error("[doPush] FAILED:",(e.message||e).slice(0,200));
     if(retry<CLOUD_RETRY_MAX-1){
@@ -1229,7 +1354,7 @@ function doPushToCloud(nl,fl,sec,rem,retry,onDone,_ovBinIds){
       setCloudStatus("offline");
       console.log("[doPush] all retries failed, will retry in 30s");
       scheduleCloudRetry(nl,fl,sec,rem);
-      if(onDone)onDone();
+      if(onDone)onDone(false);
     }
   });
 }
@@ -1278,7 +1403,7 @@ function splitAndPush(nl,fl,sec,rem,retry,onDone,_ovBinIds){
     saveOverflowBinIds(finalOvIds);
     setCloudStatus("online");cloudDirty=false;
     console.log("[split] ✓ all bins pushed");
-    if(onDone)onDone();
+    if(onDone)onDone(true);
   }).catch(function(e){
     console.error("[split] FAILED:",(e.message||e).slice(0,200));
     if(retry<CLOUD_RETRY_MAX-1){
@@ -1289,7 +1414,7 @@ function splitAndPush(nl,fl,sec,rem,retry,onDone,_ovBinIds){
       setCloudStatus("offline");
       console.log("[split] all retries failed, will retry in 30s");
       scheduleCloudRetry(nl,fl,sec,rem);
-      if(onDone)onDone();
+      if(onDone)onDone(false);
     }
   });
 }
