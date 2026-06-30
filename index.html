@@ -1026,6 +1026,37 @@ function resetPinDots(dotsId){
   }
 }
 
+// ======== 会话超时锁屏（10分钟无操作重新锁定） ========
+var SESSION_TIMEOUT=10*60*1000; // 10分钟
+var LOCK_TIMESTAMP_KEY="workmind_last_unlock";
+var inactivityTimer=null;
+
+function getLastUnlockTime(){
+  try{var v=localStorage.getItem(LOCK_TIMESTAMP_KEY);return v?parseInt(v):0;}catch(e){return 0;}
+}
+
+function setLastUnlockTime(){
+  localStorage.setItem(LOCK_TIMESTAMP_KEY,Date.now().toString());
+}
+
+function resetInactivityTimer(){
+  if(inactivityTimer)clearTimeout(inactivityTimer);
+  inactivityTimer=setTimeout(function(){
+    lockOverlay.classList.remove("hidden");
+    startUnlock();
+  },SESSION_TIMEOUT);
+}
+
+function clearInactivityTimer(){
+  if(inactivityTimer){clearTimeout(inactivityTimer);inactivityTimer=null;}
+}
+
+// 全局活动监听（仅解锁状态下重置计时器）
+document.addEventListener("mousemove",function(){if(!lockOverlay.classList.contains("hidden"))return;resetInactivityTimer();});
+document.addEventListener("keydown",function(){if(!lockOverlay.classList.contains("hidden"))return;resetInactivityTimer();});
+document.addEventListener("click",function(){if(!lockOverlay.classList.contains("hidden"))return;resetInactivityTimer();});
+document.addEventListener("touchstart",function(){if(!lockOverlay.classList.contains("hidden"))return;resetInactivityTimer();},{passive:true});
+
 // ======== 锁屏逻辑 ========
 var lockState={
   mode:"gesture",
@@ -1084,6 +1115,17 @@ function resetLockInputs(){
 function checkLock(){
   migrateSecurity();
   var sec=getSecurity();
+  // 已设置密码且10分钟内解锁过 → 跳过锁屏
+  if(sec.setup){
+    var lastUnlock=getLastUnlockTime();
+    var elapsed=Date.now()-lastUnlock;
+    if(elapsed<SESSION_TIMEOUT){
+      lockOverlay.classList.add("hidden");
+      resetInactivityTimer();
+      initApp();
+      return;
+    }
+  }
   if(!sec.setup){
     startSetup();
   }else{
@@ -1218,6 +1260,8 @@ function handleGestureInput(pattern){
         startSetupStep("pin");
       }else{
         lockOverlay.classList.add("hidden");
+        setLastUnlockTime();
+        resetInactivityTimer();
         showToast("✅ 手势密码设置成功");
         initApp();
       }
@@ -1275,6 +1319,8 @@ function handlePinInput(pin){
         startSetupStep("gesture");
       }else{
         lockOverlay.classList.add("hidden");
+        setLastUnlockTime();
+        resetInactivityTimer();
         showToast("✅ 数字密码设置成功");
         initApp();
       }
@@ -1290,6 +1336,8 @@ function handlePinInput(pin){
 function unlockSuccess(){
   lockState.attempts=0;
   lockOverlay.classList.add("hidden");
+  setLastUnlockTime();
+  resetInactivityTimer();
   initApp();
 }
 
