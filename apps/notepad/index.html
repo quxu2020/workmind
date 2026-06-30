@@ -438,7 +438,7 @@ body{
   <button class="btn" id="listToggle" onclick="toggleList()">☰ 列表</button>
   <button class="btn import" onclick="triggerImport()" title="导入 .md 文件">📥 导入</button>
   <button class="btn export" onclick="exportCurrentNote()" title="导出当前笔记">📤 导出</button>
-  <button class="btn sync" onclick="forcePushToCloud()" title="强制同步到云端">☁️ 云端</button>
+  <button class="btn sync" onclick="fullSync(function(){showToast('✅ 同步完成')})" title="本地↔云端双向同步">☁️ 云端</button>
   <button class="btn save" onclick="saveNote()">💾 保存</button>
   <div class="cloud-dot" id="cloudDot" title="云端"></div>
 </div>
@@ -1008,9 +1008,23 @@ function getFilteredNotes(){
   return notes.filter(function(n){return (n.folder||"默认")===currentFolder;});
 }
 
-// ======== 云端同步（合并策略：以时间为准，保留最新版本） ========
-function pullNotesFromCloud(cb){
+// ======== 双向完整同步 ========
+// 原则：按 note.id 取并集，同 id 保留时间戳更新的版本
+// 每次打开页面全量比对，确保本地和云端数据完全一致
+
+var CLOUD_RETRY_MAX=3;
+var CLOUD_RETRY_DELAY=[1000,3000,6000];
+var cloudDirty=false;
+var cloudSyncTimer=null;
+var _syncInProgress=false;
+
+function fullSync(onDone){
+  if(_syncInProgress){console.log("[fullSync] already running, skip");if(onDone)onDone();return;}
+  _syncInProgress=true;
   setCloudStatus("syncing");
+  console.log("[fullSync] === START: local="+notes.length+" notes, folders="+JSON.stringify(folders));
+
+  // 1. 拉取云端数据
   fetch(JSONBIN_USER_URL+"/latest",{
     method:"GET",headers:{"X-Master-Key":JSONBIN_USER_KEY}
   }).then(function(r){
@@ -1019,48 +1033,69 @@ function pullNotesFromCloud(cb){
   }).then(function(data){
     var cloudNotes=data.record.notes||[];
     var cloudFolders=data.record.folders||[];
-    var changed=false;
+    var cloudSec=data.record.security||null;
+    var cloudRem=data.record.reminders||[];
+    console.log("[fullSync] cloud="+cloudNotes.length+" notes, folders="+JSON.stringify(cloudFolders));
 
-    // 1. 合并文件夹：本地 + 云端取并集
-    var mergedFolders=folders.slice();
-    cloudFolders.forEach(function(f){
-      if(mergedFolders.indexOf(f)<0)mergedFolders.push(f);
-    });
-    if(mergedFolders.join(",")!==folders.join(",")){
-      folders=mergedFolders;
-      changed=true;
-    }
+    // 2. 构建合并 Map：本地 + 云端按 id 取并集
+    var map={};
+    var stats={localOnly:0,cloudOnly:0,sameId:0,cloudWins:0};
 
-    // 2. 构建本地笔记 Map
-    var localMap={};
-    notes.forEach(function(n){localMap[n.id]=n;});
-
-    // 3. 合并笔记：云端覆盖本地当且仅当云端时间更新
+    notes.forEach(function(n){if(!n.folder)n.folder="默认";map[n.id]={note:n,src:"local"};});
     cloudNotes.forEach(function(cn){
       if(!cn.folder)cn.folder="默认";
-      var local=localMap[cn.id];
-      if(!local||(cn.time||0)>=(local.time||0)){
-        localMap[cn.id]=cn;
-        changed=true;
-      }
+      var e=map[cn.id];
+      if(!e){map[cn.id]={note:cn,src:"cloud"};stats.cloudOnly++;return;}
+      stats.sameId++;
+      if((cn.time||0)>(e.note.time||0)){map[cn.id]={note:cn,src:"cloud"};stats.cloudWins++;}
     });
+    // 统计本地独有
+    var localIds={};
+    cloudNotes.forEach(function(cn){localIds[cn.id]=true;});
+    notes.forEach(function(n){if(!localIds[n.id])stats.localOnly++;});
 
-    // 4. 重建 notes 数组
-    var mergedNotes=[];
-    for(var k in localMap){if(localMap.hasOwnProperty(k))mergedNotes.push(localMap[k]);}
-    notes=mergedNotes;
+    // 3. 重建 notes 数组
+    var merged=[];
+    for(var k in map){if(map.hasOwnProperty(k))merged.push(map[k].note);}
+    notes=merged;
+
+    // 4. 合并文件夹
+    var mf=folders.slice();
+    cloudFolders.forEach(function(f){if(mf.indexOf(f)<0)mf.push(f);});
+    folders=mf;
+
+    console.log("[fullSync] result: localOnly="+stats.localOnly+" cloudOnly="+stats.cloudOnly+
+      " sameId="+stats.sameId+" cloudWins="+stats.cloudWins+" total="+notes.length);
+
+    // 5. 保存本地
     saveAllNotesLocal();
     saveFolders();
 
-    // 5. 将合并结果回推云端（修复云端缺失的数据）
-    if(changed)pushAllToCloud();
-
-    setCloudStatus("online");
-    if(cb)cb(cloudNotes);
+    // 6. 推送到云端（合并后的完整数据）
+    var needPush=(stats.localOnly>0||stats.cloudOnly>0||stats.cloudWins>0);
+    if(needPush){
+      console.log("[fullSync] pushing merged data to cloud...");
+      doPushToCloud(notes,folders,cloudSec,cloudRem,0,function(){
+        _syncInProgress=false;
+        if(onDone)onDone();
+      });
+    }else{
+      console.log("[fullSync] already identical, no push needed");
+      setCloudStatus("online");
+      _syncInProgress=false;
+      if(onDone)onDone();
+    }
   }).catch(function(e){
-    console.error("[pullNotesFromCloud] FAILED:",e.message);
-    setCloudStatus("offline");
-    if(cb)cb(null);
+    console.error("[fullSync] FETCH failed:",e.message);
+    // 拉取失败时：如果本地有数据，直接推送到云端
+    if(notes.length>0){
+      console.log("[fullSync] cloud unreachable, pushing local data blindly...");
+      pushAllToCloud(0,onDone);
+    }else{
+      setCloudStatus("offline");
+      _syncInProgress=false;
+      if(onDone)onDone();
+    }
   });
 }
 
@@ -1074,108 +1109,80 @@ function saveAllNotes(){
   pushAllToCloud();
 }
 
-// 推送笔记+文件夹+提醒到云端（带重试）
-var CLOUD_RETRY_MAX=3;
-var CLOUD_RETRY_DELAY=[1000,3000,6000]; // 递增延迟
-var cloudDirty=false; // 本地有未同步的改动
-var cloudSyncTimer=null;
-
-function pushAllToCloud(retryCount){
+// ======== 推送到云端（带重试） ========
+function pushAllToCloud(retryCount,onDone){
   if(retryCount===undefined)retryCount=0;
   setCloudStatus("syncing");
   cloudDirty=true;
-  // 先拉取现有云端数据，保留 security/reminders 字段
+  // 保留云端已有 security/reminders
   fetch(JSONBIN_USER_URL+"/latest",{
     method:"GET",headers:{"X-Master-Key":JSONBIN_USER_KEY}
   }).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(existing){
     var remList=[];
     try{remList=JSON.parse(localStorage.getItem("reminders_v1")||"[]");}catch(e){}
-    var cloudSecurity=null;
-    if(existing&&existing.record){cloudSecurity=existing.record.security||null;}
-    var data={notes:notes,folders:folders,reminders:remList,security:cloudSecurity,updatedAt:Date.now()};
-    var jsonStr=JSON.stringify(data);
-    console.log("[pushAllToCloud] attempt "+(retryCount+1)+"/"+CLOUD_RETRY_MAX+" payload:",jsonStr.length,"bytes notes:",notes.length);
-    return fetch(JSONBIN_USER_URL,{
-      method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY,"X-Bin-Versioning":"false"},
-      body:jsonStr
-    });
+    var cloudSec=null;
+    if(existing&&existing.record)cloudSec=existing.record.security||null;
+    doPushToCloud(notes,folders,cloudSec,remList,retryCount,onDone);
+  }).catch(function(){
+    var remList=[];
+    try{remList=JSON.parse(localStorage.getItem("reminders_v1")||"[]");}catch(e){}
+    doPushToCloud(notes,folders,null,remList,retryCount,onDone);
+  });
+}
+
+function doPushToCloud(nl,fl,sec,rem,retry,onDone){
+  if(!nl)nl=notes;if(!fl)fl=folders;
+  if(retry===undefined)retry=0;
+
+  var body=JSON.stringify({
+    notes:nl,folders:fl,reminders:rem||[],security:sec||null,updatedAt:Date.now()
+  });
+  console.log("[doPush] #"+(retry+1)+"/"+CLOUD_RETRY_MAX+" size:"+body.length+"b notes:"+nl.length);
+
+  fetch(JSONBIN_USER_URL,{
+    method:"PUT",
+    headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY,"X-Bin-Versioning":"false"},
+    body:body
   }).then(function(r){
-    if(!r.ok)return r.text().then(function(t){throw new Error("HTTP "+r.status+" body:"+t.slice(0,200));});
-    setCloudStatus("online");
-    cloudDirty=false;
-    console.log("[pushAllToCloud] OK");
+    if(!r.ok)return r.text().then(function(t){throw new Error("HTTP "+r.status+" "+t.slice(0,150));});
+    setCloudStatus("online");cloudDirty=false;
+    console.log("[doPush] OK");
+    if(onDone)onDone();
   }).catch(function(e){
-    console.error("[pushAllToCloud] FAILED:",e.message||e);
-    if(retryCount<CLOUD_RETRY_MAX-1){
-      var delay=CLOUD_RETRY_DELAY[retryCount]||3000;
-      console.log("[pushAllToCloud] retrying in "+delay+"ms...");
-      setTimeout(function(){pushAllToCloud(retryCount+1);},delay);
+    console.error("[doPush] FAILED:",(e.message||e).slice(0,200));
+    if(retry<CLOUD_RETRY_MAX-1){
+      var d=CLOUD_RETRY_DELAY[retry]||3000;
+      console.log("[doPush] retry in "+d+"ms");
+      setTimeout(function(){doPushToCloud(nl,fl,sec,rem,retry+1,onDone);},d);
     }else{
       setCloudStatus("offline");
-      // 最终失败后每30秒重试
-      scheduleCloudRetry();
+      console.log("[doPush] all retries failed, will retry in 30s");
+      scheduleCloudRetry(nl,fl,sec,rem);
+      if(onDone)onDone();
     }
   });
 }
 
-function scheduleCloudRetry(){
+function scheduleCloudRetry(nl,fl,sec,rem){
   if(cloudSyncTimer)clearTimeout(cloudSyncTimer);
   cloudSyncTimer=setTimeout(function(){
-    if(cloudDirty)pushAllToCloud();
+    if(cloudDirty)doPushToCloud(nl||notes,fl||folders,sec||null,rem||[],0);
   },30000);
 }
 
-// 强制本地覆盖云端（用于恢复丢失数据）
-function forcePushToCloud(){
-  setCloudStatus("syncing");
-  showToast("🔄 正在恢复数据到云端...");
-  // 先拉取保留 security/reminders
-  fetch(JSONBIN_USER_URL+"/latest",{
-    method:"GET",headers:{"X-Master-Key":JSONBIN_USER_KEY}
-  }).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(existing){
-    var remList=[];
-    try{remList=JSON.parse(localStorage.getItem("reminders_v1")||"[]");}catch(e){}
-    var cloudSecurity=null;
-    if(existing&&existing.record){cloudSecurity=existing.record.security||null;}
-    var data={notes:notes,folders:folders,reminders:remList,security:cloudSecurity,updatedAt:Date.now()};
-    console.log("[forcePushToCloud] pushing",notes.length,"notes to cloud");
-    return fetch(JSONBIN_USER_URL,{
-      method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY,"X-Bin-Versioning":"false"},
-      body:JSON.stringify(data)
-    });
-  }).then(function(r){
-    if(!r.ok)throw new Error("HTTP "+r.status);
-    setCloudStatus("online");
-    cloudDirty=false;
-    showToast("✅ 已恢复 "+notes.length+" 条笔记到云端");
-  }).catch(function(e){
-    console.error("[forcePushToCloud] FAILED:",e.message);
-    setCloudStatus("offline");
-    showToast("❌ 恢复失败："+e.message);
-  });
-}
-
+// ======== 提醒同步到云端（保留 notes/folders） ========
 function syncRemindersToCloud(reminders){
   setCloudStatus("syncing");
   fetch(JSONBIN_USER_URL+"/latest",{
     method:"GET",headers:{"X-Master-Key":JSONBIN_USER_KEY}
   }).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(existing){
-    var cloudNotes=notes;
-    var cloudFolders=folders;
-    var cloudSecurity=null;
+    var cn=notes,cf=folders,cs=null;
     if(existing&&existing.record){
-      cloudNotes=existing.record.notes||notes;
-      cloudFolders=existing.record.folders||folders;
-      cloudSecurity=existing.record.security||null;
+      cn=existing.record.notes||notes;
+      cf=existing.record.folders||folders;
+      cs=existing.record.security||null;
     }
-    var data={notes:cloudNotes,folders:cloudFolders,reminders:reminders,security:cloudSecurity,updatedAt:Date.now()};
-    return fetch(JSONBIN_USER_URL,{
-      method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_USER_KEY,"X-Bin-Versioning":"false"},
-      body:JSON.stringify(data)
-    });
-  }).then(function(r){
-    if(r&&!r.ok)return r.text().then(function(t){throw new Error("HTTP "+r.status+" body:"+t.slice(0,200));});
-    setCloudStatus("online");
+    return doPushToCloud(cn,cf,cs,reminders,0);
   }).catch(function(e){
     console.error("[syncRemindersToCloud] FAILED:",e.message||e);
     setCloudStatus("offline");
@@ -1199,12 +1206,11 @@ function initAfterCloudSync(){
   if(!hasDoc){
     notes.push({id:"_workmind_doc",title:"📋 工作台功能文档",content:BUILTIN_DOC,folder:"默认",time:Date.now()});
     saveAllNotesLocal();
-    pushAllToCloud();
   }
   // 迁移没有 folder 的笔记
   var migrated=false;
   notes.forEach(function(n){if(!n.folder){n.folder="默认";migrated=true;}});
-  if(migrated){saveAllNotesLocal();pushAllToCloud();}
+  if(migrated)saveAllNotesLocal();
 
   // 初始化界面
   renderFolders();
@@ -1586,16 +1592,12 @@ function showToast(msg){
 
 // ======== 启动 ========
 loadNotes();
-pullNotesFromCloud(function(cloudNotes){
-  // 本地笔记数 > 云端 → 自动恢复数据到云端
-  if(notes.length>0&&(!cloudNotes||cloudNotes.length<notes.length)){
-    console.log("[init] local notes("+notes.length+") > cloud("+(cloudNotes?cloudNotes.length:0)+"), restoring local to cloud...");
-    forcePushToCloud();
-  }
+// 双向全量同步：本地↔云端取并集，保持完全一致
+fullSync(function(){
   initAfterCloudSync();
-  if(!cloudNotes||cloudNotes.length===0){pushAllToCloud();}
   // 初始化文件夹选中状态（隐藏重复标题）
   selectFolder(currentFolder||"__all__");
+  console.log("[init] startup complete, notes:",notes.length,"folders:",JSON.stringify(folders));
 });
 
 // 点击背景关闭移动端列表
