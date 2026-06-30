@@ -1071,20 +1071,13 @@ function fullSync(onDone){
     saveAllNotesLocal();
     saveFolders();
 
-    // 6. 推送到云端（合并后的完整数据）
-    var needPush=(stats.localOnly>0||stats.cloudOnly>0||stats.cloudWins>0);
-    if(needPush){
-      console.log("[fullSync] pushing merged data to cloud...");
-      doPushToCloud(notes,folders,cloudSec,cloudRem,0,function(){
-        _syncInProgress=false;
-        if(onDone)onDone();
-      });
-    }else{
-      console.log("[fullSync] already identical, no push needed");
-      setCloudStatus("online");
+    // 6. 始终推送到云端（确保云端=合并后的权威数据）
+    console.log("[fullSync] pushing merged data to cloud ("+notes.length+" notes)...");
+    doPushToCloud(notes,folders,cloudSec,cloudRem,0,function(){
+      console.log("[fullSync] ✓ cloud push complete");
       _syncInProgress=false;
       if(onDone)onDone();
-    }
+    });
   }).catch(function(e){
     console.error("[fullSync] FETCH failed:",e.message);
     // 拉取失败时：如果本地有数据，直接推送到云端
