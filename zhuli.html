@@ -681,7 +681,7 @@ td.task-cell .task-name { font-weight: 600; font-size: 14px; word-break: break-a
       <div class="settings-item">
         <div>
           <div class="label">配置 JSONBin</div>
-          <div class="desc">设置API Key和Bin ID</div>
+          <div class="desc">已内置配置，可手动覆盖</div>
         </div>
         <button onclick="openCloudConfig()">配置</button>
       </div>
@@ -756,6 +756,10 @@ td.task-cell .task-name { font-weight: 600; font-size: 14px; word-break: break-a
 const SK_DATA = 'zhuli_data_v2';
 const SK_CLOUD = 'zhuli_cloud_v2';
 
+// ====== 云端配置（已内置，无需手动配置）=======
+const BUILTIN_API_KEY = '$2a$10$h5MSM8JcIdQLmy9phJjqou2VB1BdCzpWSM4WZBMeaepmGo1j0pr5a';
+const BUILTIN_BIN_ID = '6a476233f5f4af5e295879c3';
+
 // ====== Device Colors =====
 const DEVICE_COLORS = [
   { bg: '#ef4444', light: '#fee2e2', name: '红色' },
@@ -780,6 +784,28 @@ function init() {
   checkDaySwitch();
   renderAll();
   setInterval(checkDaySwitch, 60000);
+  // 如果本地无数据，自动从云端拉取
+  if (store.tasks.length === 0 && store.devices.length === 0) {
+    setTimeout(() => autoPullFromCloud(), 500);
+  }
+}
+
+async function autoPullFromCloud() {
+  const cfg = getCloudConfig();
+  if (!cfg.apiKey || !cfg.binId) return;
+  try {
+    const resp = await fetch(`https://api.jsonbin.io/v3/b/${cfg.binId}/latest`, {
+      headers: { 'X-Master-Key': cfg.apiKey }
+    });
+    if (!resp.ok) return;
+    const result = await resp.json();
+    if (result.record && (result.record.tasks?.length || result.record.devices?.length)) {
+      store = result.record;
+      if (!store.records) store.records = {};
+      if (!store.lastActiveDate) store.lastActiveDate = todayStr();
+      saveData(); renderAll();
+    }
+  } catch(e) {}
 }
 
 // ====== Data =====
@@ -1086,16 +1112,8 @@ function updateCloudStatus() {
   const cfg = getCloudConfig();
   const st = document.getElementById('cloudStatus');
   const desc = document.getElementById('cloudDesc');
-  if (cfg.apiKey && cfg.binId) {
-    st.textContent = '● 已连接'; st.className = 'cloud-status connected';
-    desc.textContent = '云端同步就绪';
-  } else if (cfg.apiKey) {
-    st.textContent = '● 待初始化'; st.className = 'cloud-status connected';
-    desc.textContent = '已配置Key，上传后自动创建';
-  } else {
-    st.textContent = '● 未连接'; st.className = 'cloud-status disconnected';
-    desc.textContent = '未配置';
-  }
+  st.textContent = '● 已连接'; st.className = 'cloud-status connected';
+  desc.textContent = '云端自动同步中';
 }
 
 // ====== Export / Import =====
@@ -1147,8 +1165,10 @@ function clearAll() {
 
 // ====== Cloud Sync =====
 function getCloudConfig() {
+  // 优先使用内置配置，localStorage 可覆盖
   const raw = localStorage.getItem(SK_CLOUD);
-  try { return raw ? JSON.parse(raw) : {}; } catch(e) { return {}; }
+  const local = (() => { try { return raw ? JSON.parse(raw) : {}; } catch(e) { return {}; } })();
+  return { apiKey: local.apiKey || BUILTIN_API_KEY, binId: local.binId || BUILTIN_BIN_ID };
 }
 
 function saveCloudConfig() {
