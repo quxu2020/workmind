@@ -760,6 +760,14 @@ const SK_CLOUD = 'zhuli_cloud_v2';
 const BUILTIN_API_KEY = '$2a$10$h5MSM8JcIdQLmy9phJjqou2VB1BdCzpWSM4WZBMeaepmGo1j0pr5a';
 const BUILTIN_BIN_ID = '6a476233f5f4af5e295879c3';
 
+// CORS 代理（微信浏览器跨域兼容）
+const BIN_API = 'https://api.jsonbin.io/v3/b';
+function apiFetch(path, options = {}) {
+  const url = BIN_API + path;
+  const proxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
+  return fetch(proxy, options);
+}
+
 // ====== Device Colors =====
 const DEVICE_COLORS = [
   { bg: '#ef4444', light: '#fee2e2', name: '红色' },
@@ -794,7 +802,7 @@ async function autoPullFromCloud() {
   const cfg = getCloudConfig();
   if (!cfg.apiKey || !cfg.binId) return;
   try {
-    const resp = await fetch(`https://api.jsonbin.io/v3/b/${cfg.binId}/latest`, {
+    const resp = await apiFetch(`/${cfg.binId}/latest`, {
       headers: { 'X-Master-Key': cfg.apiKey }
     });
     if (!resp.ok) return;
@@ -1194,9 +1202,9 @@ async function syncToCloud() {
   if (!cfg.apiKey) { showToast('请先配置云端'); return; }
   showToast('正在上传...');
   try {
-    const url = cfg.binId ? `https://api.jsonbin.io/v3/b/${cfg.binId}` : 'https://api.jsonbin.io/v3/b';
+    const path = cfg.binId ? `/${cfg.binId}` : '';
     const method = cfg.binId ? 'PUT' : 'POST';
-    const resp = await fetch(url, {
+    const resp = await apiFetch(path, {
       method, headers: { 'Content-Type': 'application/json', 'X-Master-Key': cfg.apiKey },
       body: JSON.stringify(store)
     });
@@ -1217,7 +1225,7 @@ async function syncFromCloud() {
   if (!confirm('从云端拉取会覆盖本地，确定？')) return;
   showToast('正在拉取...');
   try {
-    const resp = await fetch(`https://api.jsonbin.io/v3/b/${cfg.binId}/latest`, {
+    const resp = await apiFetch(`/${cfg.binId}/latest`, {
       headers: { 'X-Master-Key': cfg.apiKey }
     });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -1229,7 +1237,7 @@ async function syncFromCloud() {
       saveData(); renderAll();
       showToast('✅ 已从云端恢复');
     }
-  } catch(err) { showToast('❌ 拉取失败'); }
+  } catch(err) { showToast('❌ 拉取失败 ' + (err.message || '')); }
 }
 
 let syncTimer = null;
