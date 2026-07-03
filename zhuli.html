@@ -49,92 +49,7 @@ body {
 
 input, textarea { -webkit-user-select: text; user-select: text; font-size: 16px; }
 
-/* ===== Login Page ===== */
-.login-page {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  padding: 40px 24px;
-  padding-top: calc(40px + var(--safe-top));
-  background: linear-gradient(160deg, #4f46e5 0%, #7c3aed 50%, #6366f1 100%);
-}
-.login-logo {
-  width: 80px; height: 80px;
-  border-radius: 22px;
-  background: rgba(255,255,255,0.15);
-  backdrop-filter: blur(10px);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 40px;
-  margin-bottom: 20px;
-  border: 1px solid rgba(255,255,255,0.2);
-}
-.login-title {
-  color: white;
-  font-size: 26px;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-.login-sub {
-  color: rgba(255,255,255,0.7);
-  font-size: 14px;
-  margin-bottom: 36px;
-}
-.login-card {
-  width: 100%;
-  max-width: 360px;
-  background: white;
-  border-radius: 20px;
-  padding: 28px 24px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.2);
-}
-.login-input {
-  width: 100%;
-  padding: 15px 16px;
-  border: 2px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 17px;
-  font-family: inherit;
-  outline: none;
-  transition: border 0.2s;
-  margin-bottom: 16px;
-}
-.login-input:focus { border-color: var(--primary-light); }
-.login-btn {
-  width: 100%;
-  padding: 15px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--primary);
-  color: white;
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.login-btn:active { background: var(--primary-dark); transform: scale(0.98); }
-.login-remember {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
-  font-size: 14px;
-  color: var(--text-light);
-}
-.login-remember input { width: 18px; height: 18px; accent-color: var(--primary); }
-.login-error {
-  color: var(--danger);
-  font-size: 14px;
-  text-align: center;
-  margin-bottom: 12px;
-  display: none;
-}
-.login-error.show { display: block; }
-
 /* ===== App Header ===== */
-.app { display: none; }
-.app.show { display: block; }
 
 .header {
   background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
@@ -615,22 +530,6 @@ td.task-cell .task-name { font-weight: 600; font-size: 14px; word-break: break-a
 </head>
 <body>
 
-<!-- ===== Login Page ===== -->
-<div class="login-page" id="loginPage">
-  <div class="login-logo">📋</div>
-  <div class="login-title">助力记录</div>
-  <div class="login-sub">多手机助力任务管理</div>
-  <div class="login-card">
-    <div class="login-error" id="loginError">密码错误，请重试</div>
-    <input type="password" class="login-input" id="loginPassword" placeholder="请输入密码" autocomplete="off">
-    <label class="login-remember">
-      <input type="checkbox" id="rememberMe" checked>
-      <span>7天内免登录</span>
-    </label>
-    <button class="login-btn" onclick="doLogin()">登 录</button>
-  </div>
-</div>
-
 <!-- ===== Main App ===== -->
 <div class="app" id="mainApp">
   <div class="header">
@@ -639,7 +538,6 @@ td.task-cell .task-name { font-weight: 600; font-size: 14px; word-break: break-a
       <div class="header-actions">
         <button class="icon-btn" onclick="openHistory()" title="历史">📅</button>
         <button class="icon-btn" onclick="openSettings()" title="设置">⚙️</button>
-        <button class="icon-btn" onclick="doLogout()" title="退出">🚪</button>
       </div>
     </div>
     <div class="date-bar">
@@ -804,17 +702,6 @@ td.task-cell .task-name { font-weight: 600; font-size: 14px; word-break: break-a
     </div>
 
     <div class="settings-section">
-      <h3>安全</h3>
-      <div class="settings-item">
-        <div>
-          <div class="label">修改密码</div>
-          <div class="desc">设置新的登录密码</div>
-        </div>
-        <button onclick="openChangePassword()">修改</button>
-      </div>
-    </div>
-
-    <div class="settings-section">
       <h3>数据清理</h3>
       <div class="settings-item">
         <div>
@@ -861,34 +748,13 @@ td.task-cell .task-name { font-weight: 600; font-size: 14px; word-break: break-a
   </div>
 </div>
 
-<!-- ===== Change Password Modal ===== -->
-<div class="modal-overlay" id="pwdModal">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModal('pwdModal')">×</button>
-    <div class="modal-title">🔑 修改密码</div>
-    <div class="form-group">
-      <label class="form-label">新密码</label>
-      <input type="text" class="form-input" id="newPassword" placeholder="输入新密码" autocomplete="off">
-    </div>
-    <div class="modal-actions">
-      <button class="action-btn secondary" onclick="closeModal('pwdModal')">取消</button>
-      <button class="action-btn primary" onclick="savePassword()">确认</button>
-    </div>
-  </div>
-</div>
-
 <!-- ===== Toast ===== -->
 <div class="toast" id="toast"></div>
 
 <script>
-// ====== CONFIG — 部署前修改密码 ======
-const DEFAULT_PASSWORD = 'zhuli2024';
-
 // ====== Storage Keys =====
 const SK_DATA = 'zhuli_data_v2';
 const SK_CLOUD = 'zhuli_cloud_v2';
-const SK_AUTH = 'zhuli_auth_v2';
-const SK_PWD = 'zhuli_pwd_v2';
 
 // ====== Device Colors =====
 const DEVICE_COLORS = [
@@ -910,82 +776,10 @@ let selectedPlatform = 'jd';
 
 // ====== Init =====
 function init() {
-  // Check auth
-  if (checkAuth()) {
-    showApp();
-  }
   loadData();
   checkDaySwitch();
   renderAll();
   setInterval(checkDaySwitch, 60000);
-
-  // Password input enter key
-  document.getElementById('loginPassword').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') doLogin();
-  });
-}
-
-// ====== Auth =====
-function getPassword() {
-  return localStorage.getItem(SK_PWD) || DEFAULT_PASSWORD;
-}
-
-function checkAuth() {
-  const auth = localStorage.getItem(SK_AUTH);
-  if (!auth) return false;
-  try {
-    const data = JSON.parse(auth);
-    if (data.exp > Date.now()) return true;
-    localStorage.removeItem(SK_AUTH);
-    return false;
-  } catch(e) { return false; }
-}
-
-function doLogin() {
-  const pwd = document.getElementById('loginPassword').value.trim();
-  const remember = document.getElementById('rememberMe').checked;
-  const errEl = document.getElementById('loginError');
-
-  if (pwd === getPassword()) {
-    const exp = remember ? Date.now() + 7 * 24 * 3600 * 1000 : Date.now() + 12 * 3600 * 1000;
-    localStorage.setItem(SK_AUTH, JSON.stringify({ exp }));
-    errEl.classList.remove('show');
-    document.getElementById('loginPassword').value = '';
-    showApp();
-  } else {
-    errEl.classList.add('show');
-    document.getElementById('loginPassword').value = '';
-    // Shake animation
-    const card = document.querySelector('.login-card');
-    card.style.animation = 'none';
-    setTimeout(() => { card.style.animation = 'shake 0.4s'; }, 10);
-  }
-}
-
-function showApp() {
-  document.getElementById('loginPage').style.display = 'none';
-  document.getElementById('mainApp').classList.add('show');
-}
-
-function doLogout() {
-  localStorage.removeItem(SK_AUTH);
-  document.getElementById('mainApp').classList.remove('show');
-  document.getElementById('loginPage').style.display = 'flex';
-  document.getElementById('loginPassword').focus();
-}
-
-function openChangePassword() {
-  closeModal('settingsModal');
-  document.getElementById('newPassword').value = '';
-  showModal('pwdModal');
-}
-
-function savePassword() {
-  const pwd = document.getElementById('newPassword').value.trim();
-  if (!pwd) { showToast('请输入新密码'); return; }
-  localStorage.setItem(SK_PWD, pwd);
-  closeModal('pwdModal');
-  showToast('密码已修改');
 }
 
 // ====== Data =====
@@ -1451,7 +1245,6 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Enter') {
     if (document.getElementById('taskModal').classList.contains('show') && document.activeElement?.id === 'taskName') saveTask();
     else if (document.getElementById('deviceModal').classList.contains('show') && document.activeElement?.id === 'deviceName') saveDevice();
-    else if (document.getElementById('pwdModal').classList.contains('show') && document.activeElement?.id === 'newPassword') savePassword();
   }
   if (e.key === 'Escape') {
     document.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
@@ -1465,11 +1258,6 @@ document.addEventListener('touchend', function(e) {
   if (now - lastTouch < 300) e.preventDefault();
   lastTouch = now;
 }, { passive: false });
-
-// ====== Shake animation =====
-const style = document.createElement('style');
-style.textContent = `@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }`;
-document.head.appendChild(style);
 
 // ====== Start =====
 init();
