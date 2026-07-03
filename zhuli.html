@@ -776,7 +776,8 @@ async function ghRead() {
   if (!resp.ok) throw new Error('HTTP ' + resp.status);
   const data = await resp.json();
   _ghSha = data.sha;
-  return JSON.parse(atob(data.content.replace(/\\s/g, '')));
+  const bytes = Uint8Array.from(atob(data.content.replace(/\\s/g, '')), c => c.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes));
 }
 
 async function ghWrite(json) {
