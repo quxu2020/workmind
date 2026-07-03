@@ -674,16 +674,16 @@ td.task-cell .task-name { font-weight: 600; font-size: 14px; word-break: break-a
       <div class="settings-item">
         <div>
           <div class="label">云端状态</div>
-          <div class="desc" id="cloudDesc">未配置</div>
+          <div class="desc" id="cloudDesc">GitHub 云端自动同步</div>
         </div>
         <span class="cloud-status disconnected" id="cloudStatus">● 未连接</span>
       </div>
       <div class="settings-item">
         <div>
-          <div class="label">配置 JSONBin</div>
-          <div class="desc">已内置配置，可手动覆盖</div>
+          <div class="label">GitHub 同步</div>
+          <div class="desc">已内置配置，无需操作</div>
         </div>
-        <button onclick="openCloudConfig()">配置</button>
+        <span style="color:var(--text-lighter);font-size:13px">已配置</span>
       </div>
       <div class="settings-item">
         <div>
@@ -721,52 +721,18 @@ td.task-cell .task-name { font-weight: 600; font-size: 14px; word-break: break-a
   </div>
 </div>
 
-<!-- ===== Cloud Config Modal ===== -->
-<div class="modal-overlay" id="cloudModal">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModal('cloudModal')">×</button>
-    <div class="modal-title">☁️ 云端同步配置</div>
-    <div class="cloud-help">
-      使用 <b>JSONBin.io</b> 实现云端同步：<br>
-      1. 登录 <a href="https://jsonbin.io" target="_blank">jsonbin.io</a><br>
-      2. Account → API Keys → 复制 Master Key<br>
-      3. 粘贴到下方，首次上传自动创建 Bin<br>
-      4. 多设备共享：在其他设备填入相同的 Key 和 Bin ID
-    </div>
-    <div class="form-group">
-      <label class="form-label">API Key (Master Key)</label>
-      <input type="text" class="form-input" id="apiKey" placeholder="粘贴 API Key">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Bin ID（首次留空）</label>
-      <input type="text" class="form-input" id="binId" placeholder="上传后自动生成">
-    </div>
-    <div class="modal-actions">
-      <button class="action-btn secondary" onclick="closeModal('cloudModal')">取消</button>
-      <button class="action-btn primary" onclick="saveCloudConfig()">保存</button>
-    </div>
-  </div>
-</div>
-
 <!-- ===== Toast ===== -->
 <div class="toast" id="toast"></div>
 
 <script>
 // ====== Storage Keys =====
 const SK_DATA = 'zhuli_data_v2';
-const SK_CLOUD = 'zhuli_cloud_v2';
 
-// ====== 云端配置（已内置，无需手动配置）=======
-const BUILTIN_API_KEY = '$2a$10$h5MSM8JcIdQLmy9phJjqou2VB1BdCzpWSM4WZBMeaepmGo1j0pr5a';
-const BUILTIN_BIN_ID = '6a476233f5f4af5e295879c3';
-
-// CORS 代理（微信浏览器跨域兼容）
-const BIN_API = 'https://api.jsonbin.io/v3/b';
-function apiFetch(path, options = {}) {
-  const url = BIN_API + path;
-  const proxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
-  return fetch(proxy, options);
-}
+// ====== GitHub 云端同步（已内置，无需手动配置）=======
+const GH_TOKEN = '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';
+const GH_REPO = 'quxu2020/workmind';
+const GH_PATH = 'zhuli-data.json';
+const GH_API = 'https://api.github.com/repos/' + GH_REPO + '/contents/' + GH_PATH;
 
 // ====== Device Colors =====
 const DEVICE_COLORS = [
@@ -794,26 +760,34 @@ function init() {
   setInterval(checkDaySwitch, 60000);
   // 如果本地无数据，自动从云端拉取
   if (store.tasks.length === 0 && store.devices.length === 0) {
-    setTimeout(() => autoPullFromCloud(), 500);
+    setTimeout(() => syncFromCloud(true), 800);
   }
 }
 
-async function autoPullFromCloud() {
-  const cfg = getCloudConfig();
-  if (!cfg.apiKey || !cfg.binId) return;
-  try {
-    const resp = await apiFetch(`/${cfg.binId}/latest`, {
-      headers: { 'X-Master-Key': cfg.apiKey }
-    });
-    if (!resp.ok) return;
-    const result = await resp.json();
-    if (result.record && (result.record.tasks?.length || result.record.devices?.length)) {
-      store = result.record;
-      if (!store.records) store.records = {};
-      if (!store.lastActiveDate) store.lastActiveDate = todayStr();
-      saveData(); renderAll();
-    }
-  } catch(e) {}
+// ====== GitHub Cloud Sync =====
+let _ghSha = null;
+
+async function ghRead() {
+  const resp = await fetch(GH_API + '?t=' + Date.now(), {
+    headers: { Authorization: 'Bearer ' + GH_TOKEN, Accept: 'application/vnd.github+json' }
+  });
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  const data = await resp.json();
+  _ghSha = data.sha;
+  return JSON.parse(atob(data.content.replace(/\\s/g, '')));
+}
+
+async function ghWrite(json) {
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(json))));
+  const body = JSON.stringify({ message: 'update zhuli data', content, sha: _ghSha });
+  const resp = await fetch(GH_API, {
+    method: 'PUT',
+    headers: { Authorization: 'Bearer ' + GH_TOKEN, Accept: 'application/vnd.github+json' },
+    body
+  });
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  const data = await resp.json();
+  _ghSha = data.content.sha;
 }
 
 // ====== Data =====
@@ -1114,14 +1088,11 @@ function toggleHistoryDetail(date) {
 }
 
 // ====== Settings =====
-function openSettings() { updateCloudStatus(); showModal('settingsModal'); }
-
-function updateCloudStatus() {
-  const cfg = getCloudConfig();
-  const st = document.getElementById('cloudStatus');
-  const desc = document.getElementById('cloudDesc');
-  st.textContent = '● 已连接'; st.className = 'cloud-status connected';
-  desc.textContent = '云端自动同步中';
+function openSettings() {
+  document.getElementById('cloudStatus').textContent = '● 已连接';
+  document.getElementById('cloudStatus').className = 'cloud-status connected';
+  document.getElementById('cloudDesc').textContent = 'GitHub 云端自动同步';
+  showModal('settingsModal');
 }
 
 // ====== Export / Import =====
@@ -1171,79 +1142,36 @@ function clearAll() {
   showToast('全部清除');
 }
 
-// ====== Cloud Sync =====
-function getCloudConfig() {
-  // 优先使用内置配置，localStorage 可覆盖
-  const raw = localStorage.getItem(SK_CLOUD);
-  const local = (() => { try { return raw ? JSON.parse(raw) : {}; } catch(e) { return {}; } })();
-  return { apiKey: local.apiKey || BUILTIN_API_KEY, binId: local.binId || BUILTIN_BIN_ID };
-}
-
-function saveCloudConfig() {
-  const apiKey = document.getElementById('apiKey').value.trim();
-  const binId = document.getElementById('binId').value.trim();
-  if (!apiKey) { showToast('请输入API Key'); return; }
-  localStorage.setItem(SK_CLOUD, JSON.stringify({ apiKey, binId }));
-  closeModal('cloudModal');
-  updateCloudStatus();
-  showToast('配置已保存');
-}
-
-function openCloudConfig() {
-  const cfg = getCloudConfig();
-  document.getElementById('apiKey').value = cfg.apiKey || '';
-  document.getElementById('binId').value = cfg.binId || '';
-  closeModal('settingsModal');
-  showModal('cloudModal');
-}
-
+// ====== GitHub Cloud Sync =====
 async function syncToCloud() {
-  const cfg = getCloudConfig();
-  if (!cfg.apiKey) { showToast('请先配置云端'); return; }
   showToast('正在上传...');
   try {
-    const path = cfg.binId ? `/${cfg.binId}` : '';
-    const method = cfg.binId ? 'PUT' : 'POST';
-    const resp = await apiFetch(path, {
-      method, headers: { 'Content-Type': 'application/json', 'X-Master-Key': cfg.apiKey },
-      body: JSON.stringify(store)
-    });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const result = await resp.json();
-    if (!cfg.binId && result.metadata?.id) {
-      cfg.binId = result.metadata.id;
-      localStorage.setItem(SK_CLOUD, JSON.stringify(cfg));
-      updateCloudStatus();
-    }
+    try { await ghRead(); } catch(e) {}
+    await ghWrite(store);
     showToast('✅ 已同步到云端');
-  } catch(err) { showToast('❌ 同步失败'); }
+  } catch(err) { showToast('❌ 同步失败 ' + (err.message || '')); }
 }
 
-async function syncFromCloud() {
-  const cfg = getCloudConfig();
-  if (!cfg.apiKey || !cfg.binId) { showToast('请先配置并上传'); return; }
-  if (!confirm('从云端拉取会覆盖本地，确定？')) return;
-  showToast('正在拉取...');
+async function syncFromCloud(silent) {
+  if (!silent && !confirm('从云端拉取会覆盖本地，确定？')) return;
   try {
-    const resp = await apiFetch(`/${cfg.binId}/latest`, {
-      headers: { 'X-Master-Key': cfg.apiKey }
-    });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const result = await resp.json();
-    if (result.record) {
-      store = result.record;
+    const data = await ghRead();
+    if (data.tasks && data.devices) {
+      store = data;
       if (!store.records) store.records = {};
       if (!store.lastActiveDate) store.lastActiveDate = todayStr();
       saveData(); renderAll();
       showToast('✅ 已从云端恢复');
+    } else if (!silent) {
+      showToast('云端暂无数据');
     }
-  } catch(err) { showToast('❌ 拉取失败 ' + (err.message || '')); }
+  } catch(err) {
+    if (!silent) showToast('❌ 拉取失败 ' + (err.message || ''));
+  }
 }
 
 let syncTimer = null;
 function autoSyncCloud() {
-  const cfg = getCloudConfig();
-  if (!cfg.apiKey || !cfg.binId) return;
   clearTimeout(syncTimer);
   syncTimer = setTimeout(() => syncToCloud(), 4000);
 }
