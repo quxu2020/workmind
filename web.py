@@ -98,8 +98,8 @@ class WebHandler(http.server.SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
 
-        if path == "/" or path == "/index.html":
-            self.send_file("index.html", "text/html; charset=utf-8")
+        if path == "/" or path == "/hot-radar.html" or path == "/index.html":
+            self.send_file("hot-radar.html", "text/html; charset=utf-8")
         elif path == "/api/collect":
             self.api_collect()
         else:

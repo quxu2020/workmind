@@ -1,0 +1,36 @@
+name: 更新热点数据
+
+on:
+  schedule:
+    # 每天早上 8 点和晚上 8 点自动运行
+    - cron: '0 0,12 * * *'
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 设置 Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: 安装依赖
+      run: pip install requests
+
+    - name: 生成热点 JSON
+      run: python generate_json.py
+
+    - name: 提交并推送
+      run: |
+        git config user.name "hot-radar-bot"
+        git config user.email "bot@hot-radar.local"
+        git add data/hot-news.json
+        git diff --quiet && git diff --staged --quiet || git commit -m "chore: 自动更新热点数据 $(date +%Y-%m-%d)"
+        git push
