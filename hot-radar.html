@@ -180,9 +180,10 @@ body { font-family:'Inter',-apple-system,sans-serif; background:var(--bg); color
     <!-- 左：热点列表 -->
     <div>
       <div class="card">
-        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+  <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
           📋 热点列表
           <div style="display:flex;gap:8px;align-items:center;">
+            <span id="tokenStatus" style="font-size:11px;color:#999;"></span>
             <button class="btn btn-ghost" id="btnSettings" style="font-size:12px;padding:6px 10px;" onclick="showSettings()">⚙️</button>
             <button class="btn btn-secondary" id="btnRefresh" style="font-size:12px;padding:6px 12px;" onclick="refreshData()">🔄 刷新</button>
             <button class="btn btn-primary" id="btnCollect" style="font-size:12px;padding:6px 12px;" onclick="triggerCollect()">🚀 立即采集</button>
@@ -239,10 +240,11 @@ body { font-family:'Inter',-apple-system,sans-serif; background:var(--bg); color
     <h3 style="margin:0 0 16px;font-size:18px;">⚙️ GitHub 设置</h3>
     <p style="font-size:13px;color:#666;margin-bottom:16px;line-height:1.6;">
       需要 GitHub Personal Access Token 来触发自动采集。<br>
-      Token 仅保存在你的浏览器，不会上传到任何服务器。
+      <strong>只需设置一次</strong>，Token 会保存在你的浏览器中。
     </p>
     <label style="font-size:13px;font-weight:600;color:#333;">GitHub Token</label>
-    <input id="tokenInput" type="password" placeholder="ghp_xxxxxxxxxxxxx" style="width:100%;padding:10px 14px;border-radius:10px;border:2px solid #e2e8f0;font-size:14px;outline:none;margin-top:6px;margin-bottom:16px;">
+    <input id="tokenInput" type="password" placeholder="ghp_xxxxxxxxxxxxx" style="width:100%;padding:10px 14px;border-radius:10px;border:2px solid #e2e8f0;font-size:14px;outline:none;margin-top:6px;margin-bottom:8px;">
+    <div id="tokenHint" style="font-size:12px;margin-bottom:16px;line-height:1.6;"></div>
     <div style="font-size:12px;color:#999;margin-bottom:20px;line-height:1.6;">
       如何获取 Token？<br>
       1. 访问 <a href="https://github.com/settings/tokens/new" target="_blank" style="color:#4361ee;">github.com/settings/tokens/new</a><br>
@@ -535,8 +537,17 @@ function triggerCollect() {
 function showSettings() {
   document.getElementById("settingsModal").style.display = "flex";
   var saved = localStorage.getItem("gh_token") || "";
-  document.getElementById("tokenInput").value = saved ? "••••••••••••••••" : "";
-  document.getElementById("tokenInput").focus();
+  var input = document.getElementById("tokenInput");
+  if (saved) {
+    input.value = "••••••••••••••••";
+    document.getElementById("tokenHint").textContent = "✅ Token 已保存，留空则保持不变";
+    document.getElementById("tokenHint").style.color = "#06d6a0";
+  } else {
+    input.value = "";
+    document.getElementById("tokenHint").textContent = "Token 仅保存在本浏览器，不会上传";
+    document.getElementById("tokenHint").style.color = "#999";
+  }
+  input.focus();
 }
 
 function closeSettings() {
@@ -651,6 +662,18 @@ function pollWorkflow(token) {
 
 /* ===================== 启动 ===================== */
 loadData();
+// 显示 Token 状态
+(function(){
+  var token = localStorage.getItem("gh_token");
+  var status = document.getElementById("tokenStatus");
+  if (token) {
+    status.textContent = "✅ Token 已配置";
+    status.style.color = "#06d6a0";
+  } else {
+    status.textContent = "⚠️ 未配置 Token";
+    status.style.color = "#f8961e";
+  }
+})();
 </script>
 </body>
 </html>
