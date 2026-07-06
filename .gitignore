@@ -23,3 +23,11 @@ output/
 # 系统
 .DS_Store
 Thumbs.db
+
+# 日志和临时文件
+*.log
+nul
+test_*.py
+
+# 启动脚本（Windows）
+*.bat
