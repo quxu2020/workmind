@@ -180,7 +180,13 @@ body { font-family:'Inter',-apple-system,sans-serif; background:var(--bg); color
     <!-- 左：热点列表 -->
     <div>
       <div class="card">
-        <div class="card-title">📋 热点列表</div>
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          📋 热点列表
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-secondary" id="btnRefresh" style="font-size:12px;padding:6px 12px;" onclick="refreshData()">🔄 刷新数据</button>
+            <button class="btn btn-primary" id="btnCollect" style="font-size:12px;padding:6px 12px;" onclick="triggerCollect()">🚀 立即采集</button>
+          </div>
+        </div>
         <div class="industry-tags" id="industryTags">
           <span class="industry-tag active" data-ind="全部">全部</span>
           <span class="industry-tag" data-ind="宠物">🐾 宠物</span>
@@ -463,6 +469,43 @@ function toast(msg) {
   el.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:10px 24px;border-radius:10px;font-size:14px;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,0.2);animation:fadeIn 0.3s;";
   document.body.appendChild(el);
   setTimeout(function(){ el.style.opacity="0"; el.style.transition="opacity 0.3s"; setTimeout(function(){el.remove();},300); }, 2500);
+}
+
+/* ===================== 刷新数据 ===================== */
+function refreshData() {
+  document.getElementById("btnRefresh").disabled = true;
+  document.getElementById("btnRefresh").textContent = "⏳ 刷新中...";
+  document.getElementById("hotList").innerHTML =
+    '<div class="empty-state"><div class="icon">📡</div><div>正在刷新数据...</div></div>';
+
+  // 重新加载 JSON（加时间戳防止缓存）
+  fetch("data/hot-news.json?t=" + Date.now())
+    .then(function(r) {
+      if (!r.ok) throw new Error("数据文件不存在");
+      return r.json();
+    })
+    .then(function(data) {
+      allItems = data.items || [];
+      onDataLoaded();
+      toast("✅ 数据已刷新，共 " + allItems.length + " 条热点");
+    })
+    .catch(function() {
+      document.getElementById("hotList").innerHTML =
+        '<div class="empty-state"><div class="icon">⚠️</div><div>数据加载失败，请稍后重试</div></div>';
+      toast("❌ 数据加载失败");
+    })
+    .finally(function() {
+      document.getElementById("btnRefresh").disabled = false;
+      document.getElementById("btnRefresh").textContent = "🔄 刷新数据";
+    });
+}
+
+/* ===================== 触发采集 ===================== */
+function triggerCollect() {
+  // 打开 GitHub Actions 页面，手动触发采集
+  var workflowUrl = "https://github.com/quxu2020/workmind/actions/workflows/update-hot-news.yml";
+  window.open(workflowUrl, "_blank");
+  toast("📌 请在打开的 GitHub 页面点击「Run workflow」按钮");
 }
 
 /* ===================== 启动 ===================== */
