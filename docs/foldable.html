@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>折叠屏 - 手机矩阵</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #0a1a1a; color: #d0f0f0; min-height: 100vh; }
+  .header { background: linear-gradient(135deg, #0a3e3e 0%, #1b6e6e 100%); padding: 32px 40px; border-bottom: 2px solid #3fffff; display: flex; align-items: center; gap: 16px; }
+  .back-btn { background: rgba(63,255,255,0.12); border: 1px solid #3fffff; color: #7af5f5; padding: 8px 18px; border-radius: 20px; cursor: pointer; font-size: 14px; text-decoration: none; transition: all .2s; }
+  .back-btn:hover { background: rgba(63,255,255,0.25); }
+  h1 { font-size: 28px; font-weight: 700; color: #a0f0f0; }
+  .badge { background: #0891b2; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; margin-left: 12px; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px; }
+  .section { background: rgba(255,255,255,0.04); border: 1px solid rgba(63,255,255,0.25); border-radius: 16px; padding: 28px; margin-bottom: 24px; }
+  .section h2 { font-size: 18px; color: #a0f0f0; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .section h2::before { content: ''; display: inline-block; width: 4px; height: 18px; background: #06b6d4; border-radius: 2px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+  .card { background: rgba(6,182,212,0.07); border: 1px solid rgba(6,182,212,0.25); border-radius: 12px; padding: 20px; text-align: center; transition: all .2s; }
+  .card:hover { transform: translateY(-4px); border-color: #06b6d4; background: rgba(6,182,212,0.15); }
+  .card .icon { font-size: 32px; margin-bottom: 10px; }
+  .card .name { font-size: 15px; font-weight: 600; color: #d0f0f0; margin-bottom: 6px; }
+  .card .spec { font-size: 12px; color: #888; }
+  .tag { display: inline-block; background: rgba(6,182,212,0.15); border: 1px solid rgba(6,182,212,0.35); color: #a0f0f0; padding: 3px 10px; border-radius: 8px; font-size: 12px; margin: 3px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: rgba(6,182,212,0.15); color: #a0f0f0; padding: 12px 16px; text-align: left; font-size: 13px; }
+  td { padding: 12px 16px; font-size: 13px; color: #ccc; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  tr:hover td { background: rgba(6,182,212,0.07); }
+  .fold-types { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .fold-type { background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.3); border-radius: 12px; padding: 20px; }
+  .fold-type h3 { color: #7af5f5; margin-bottom: 10px; font-size: 16px; }
+  .fold-type p { color: #aaa; font-size: 13px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="header">
+  <a href="../index.html" class="back-btn">← 返回导图</a>
+  <h1>📂 折叠屏</h1>
+  <span class="badge">未来形态</span>
+</div>
+<div class="container">
+  <div class="section">
+    <h2>核心定位</h2>
+    <p style="color:#ccc;line-height:1.8;">折叠屏手机是智能手机形态创新的前沿，兼顾便携性与大屏使用体验。分为横折（书式）和竖折（翻盖）两种形态，吸引追求差异化和生产力体验的用户。价格区间通常在 6000–15000 元。</p>
+    <div style="margin-top:16px;">
+      <span class="tag">超大内折屏</span><span class="tag">铰链技术</span><span class="tag">双屏交互</span><span class="tag">商务生产力</span><span class="tag">卫星通信</span>
+    </div>
+  </div>
+  <div class="section">
+    <h2>两大折叠形态</h2>
+    <div class="fold-types">
+      <div class="fold-type">
+        <h3>📖 横折（书式）</h3>
+        <p>展开后变为大平板，适合多任务操作。典型屏幕 7.6"–8.0"，厚度普遍在 11–13mm，主打商务和生产力场景。</p>
+      </div>
+      <div class="fold-type">
+        <h3>💅 竖折（翻盖）</h3>
+        <p>折叠后体积小巧，展开后为标准直板手机，外屏可运行应用。适合时尚潮流用户，价格相对较低。</p>
+      </div>
+    </div>
+  </div>
+  <div class="section">
+    <h2>代表机型</h2>
+    <div class="grid">
+      <div class="card"><div class="icon">📖</div><div class="name">华为 Mate X6</div><div class="spec">麒麟9020 · 10999起</div></div>
+      <div class="card"><div class="icon">📖</div><div class="name">三星 Galaxy Z Fold6</div><div class="spec">骁龙8 Elite · 12999起</div></div>
+      <div class="card"><div class="icon">📖</div><div class="name">小米 MIX Fold 4</div><div class="spec">骁龙8 Gen3 · 8999起</div></div>
+      <div class="card"><div class="icon">💅</div><div class="name">华为 Pocket 2 Pro</div><div class="spec">麒麟9020 · 9988起</div></div>
+      <div class="card"><div class="icon">💅</div><div class="name">三星 Galaxy Z Flip6</div><div class="spec">骁龙8 Gen3 · 6999起</div></div>
+      <div class="card"><div class="icon">💅</div><div class="name">OPPO Find N3 Flip</div><div class="spec">天玑9200 · 5999起</div></div>
+    </div>
+  </div>
+  <div class="section">
+    <h2>核心参数对比</h2>
+    <table>
+      <thead><tr><th>参数</th><th>横折规格</th><th>竖折规格</th></tr></thead>
+      <tbody>
+        <tr><td>内屏尺寸</td><td>7.6"–8.0"</td><td>6.7"–6.9"</td></tr>
+        <tr><td>外屏尺寸</td><td>6.2"–6.4"</td><td>1.9"–3.4"</td></tr>
+        <tr><td>折叠厚度</td><td>12–14mm</td><td>15–17mm</td></tr>
+        <tr><td>展开厚度</td><td>5.5–7mm</td><td>7–8mm</td></tr>
+        <tr><td>重量</td><td>250–280g</td><td>183–200g</td></tr>
+        <tr><td>价格</td><td>¥8999–¥15000</td><td>¥5999–¥10000</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>

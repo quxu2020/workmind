@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>旗舰机型 - 手机矩阵</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #0f0f1a; color: #e0e0f0; min-height: 100vh; }
+  .header { background: linear-gradient(135deg, #1a1a3e 0%, #2d1b6e 100%); padding: 32px 40px; border-bottom: 2px solid #6c3fff; display: flex; align-items: center; gap: 16px; }
+  .back-btn { background: rgba(108,63,255,0.2); border: 1px solid #6c3fff; color: #a78bfa; padding: 8px 18px; border-radius: 20px; cursor: pointer; font-size: 14px; text-decoration: none; transition: all .2s; }
+  .back-btn:hover { background: rgba(108,63,255,0.4); }
+  h1 { font-size: 28px; font-weight: 700; color: #c4b5fd; }
+  .badge { background: #6c3fff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; margin-left: 12px; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px; }
+  .section { background: rgba(255,255,255,0.04); border: 1px solid rgba(108,63,255,0.3); border-radius: 16px; padding: 28px; margin-bottom: 24px; }
+  .section h2 { font-size: 18px; color: #a78bfa; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .section h2::before { content: ''; display: inline-block; width: 4px; height: 18px; background: #6c3fff; border-radius: 2px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+  .card { background: rgba(108,63,255,0.1); border: 1px solid rgba(108,63,255,0.3); border-radius: 12px; padding: 20px; text-align: center; transition: all .2s; }
+  .card:hover { transform: translateY(-4px); border-color: #6c3fff; background: rgba(108,63,255,0.2); }
+  .card .icon { font-size: 32px; margin-bottom: 10px; }
+  .card .name { font-size: 15px; font-weight: 600; color: #e0e0f0; margin-bottom: 6px; }
+  .card .spec { font-size: 12px; color: #888; }
+  .tag { display: inline-block; background: rgba(108,63,255,0.2); border: 1px solid rgba(108,63,255,0.4); color: #c4b5fd; padding: 3px 10px; border-radius: 8px; font-size: 12px; margin: 3px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: rgba(108,63,255,0.2); color: #a78bfa; padding: 12px 16px; text-align: left; font-size: 13px; }
+  td { padding: 12px 16px; font-size: 13px; color: #ccc; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  tr:hover td { background: rgba(108,63,255,0.08); }
+</style>
+</head>
+<body>
+<div class="header">
+  <a href="../index.html" class="back-btn">← 返回导图</a>
+  <h1>📱 旗舰机型</h1>
+  <span class="badge">顶级配置</span>
+</div>
+<div class="container">
+  <div class="section">
+    <h2>核心定位</h2>
+    <p style="color:#ccc;line-height:1.8;">旗舰机型代表品牌最高技术水平，搭载最新顶级芯片、最强影像系统，面向追求极致性能与体验的高端用户群体。价格区间通常在 5000–10000+ 元。</p>
+    <div style="margin-top:16px;">
+      <span class="tag">顶级SoC</span><span class="tag">专业影像</span><span class="tag">高刷屏幕</span><span class="tag">卫星通信</span><span class="tag">钛合金机身</span>
+    </div>
+  </div>
+  <div class="section">
+    <h2>代表机型</h2>
+    <div class="grid">
+      <div class="card"><div class="icon">🍎</div><div class="name">iPhone 16 Pro Max</div><div class="spec">A18 Pro · 6.9" ProMotion</div></div>
+      <div class="card"><div class="icon">📗</div><div class="name">三星 Galaxy S25 Ultra</div><div class="spec">骁龙8 Elite · 200MP</div></div>
+      <div class="card"><div class="icon">🔴</div><div class="name">华为 Mate 70 Pro+</div><div class="spec">麒麟9020 · 星闪技术</div></div>
+      <div class="card"><div class="icon">🟢</div><div class="name">小米 15 Ultra</div><div class="spec">骁龙8 Elite · 徕卡影像</div></div>
+      <div class="card"><div class="icon">🟤</div><div class="name">OPPO Find X8 Pro</div><div class="spec">天玑9400 · 哈苏影像</div></div>
+      <div class="card"><div class="icon">🔵</div><div class="name">vivo X200 Ultra</div><div class="spec">天玑9400 · 蔡司影像</div></div>
+    </div>
+  </div>
+  <div class="section">
+    <h2>核心参数对比</h2>
+    <table>
+      <thead><tr><th>参数</th><th>规格范围</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>处理器</td><td>骁龙8 Elite / A18 Pro / 天玑9400</td><td>当年最强旗舰芯片</td></tr>
+        <tr><td>屏幕</td><td>6.7"–6.9" OLED 1–144Hz</td><td>LTPO 动态刷新率</td></tr>
+        <tr><td>内存</td><td>12–24 GB LPDDR5X</td><td>流畅多任务</td></tr>
+        <tr><td>存储</td><td>256 GB–1 TB UFS 4.0</td><td>超高速读写</td></tr>
+        <tr><td>主摄</td><td>50–200 MP</td><td>多主摄系统</td></tr>
+        <tr><td>电池</td><td>4900–6000 mAh</td><td>100W+ 有线快充</td></tr>
+        <tr><td>价格</td><td>¥5999–¥12999</td><td>品牌顶配</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>影像旗舰 - 手机矩阵</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #1a0a1a; color: #f0d0f0; min-height: 100vh; }
+  .header { background: linear-gradient(135deg, #3e0a3e 0%, #6e1b6e 100%); padding: 32px 40px; border-bottom: 2px solid #ff3fff; display: flex; align-items: center; gap: 16px; }
+  .back-btn { background: rgba(255,63,255,0.12); border: 1px solid #ff3fff; color: #f5a0f5; padding: 8px 18px; border-radius: 20px; cursor: pointer; font-size: 14px; text-decoration: none; transition: all .2s; }
+  .back-btn:hover { background: rgba(255,63,255,0.25); }
+  h1 { font-size: 28px; font-weight: 700; color: #f0a0f0; }
+  .badge { background: #a21caf; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; margin-left: 12px; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px; }
+  .section { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,63,255,0.25); border-radius: 16px; padding: 28px; margin-bottom: 24px; }
+  .section h2 { font-size: 18px; color: #f0a0f0; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .section h2::before { content: ''; display: inline-block; width: 4px; height: 18px; background: #c026d3; border-radius: 2px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+  .card { background: rgba(192,38,211,0.07); border: 1px solid rgba(192,38,211,0.25); border-radius: 12px; padding: 20px; text-align: center; transition: all .2s; }
+  .card:hover { transform: translateY(-4px); border-color: #c026d3; background: rgba(192,38,211,0.15); }
+  .card .icon { font-size: 32px; margin-bottom: 10px; }
+  .card .name { font-size: 15px; font-weight: 600; color: #f0d0f0; margin-bottom: 6px; }
+  .card .spec { font-size: 12px; color: #888; }
+  .tag { display: inline-block; background: rgba(192,38,211,0.15); border: 1px solid rgba(192,38,211,0.35); color: #f0a0f0; padding: 3px 10px; border-radius: 8px; font-size: 12px; margin: 3px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: rgba(192,38,211,0.15); color: #f0a0f0; padding: 12px 16px; text-align: left; font-size: 13px; }
+  td { padding: 12px 16px; font-size: 13px; color: #ccc; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  tr:hover td { background: rgba(192,38,211,0.07); }
+  .camera-specs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .cam-card { background: rgba(192,38,211,0.07); border: 1px solid rgba(192,38,211,0.25); border-radius: 12px; padding: 18px; text-align: center; }
+  .cam-card .label { font-size: 12px; color: #aaa; margin-bottom: 6px; }
+  .cam-card .value { font-size: 22px; font-weight: 700; color: #f0a0f0; }
+  .cam-card .unit { font-size: 12px; color: #888; }
+</style>
+</head>
+<body>
+<div class="header">
+  <a href="../index.html" class="back-btn">← 返回导图</a>
+  <h1>📸 影像旗舰</h1>
+  <span class="badge">摄影专业</span>
+</div>
+<div class="container">
+  <div class="section">
+    <h2>核心定位</h2>
+    <p style="color:#ccc;line-height:1.8;">影像旗舰专为手机摄影爱好者设计，与顶级光学品牌深度合作，搭载大底主摄、多焦段系统及专业影像算法，追求媲美专业相机的拍摄质量。</p>
+    <div style="margin-top:16px;">
+      <span class="tag">大底主摄</span><span class="tag">潜望长焦</span><span class="tag">4K视频</span><span class="tag">光学防抖</span><span class="tag">品牌联名</span><span class="tag">RAW格式</span>
+    </div>
+  </div>
+  <div class="section">
+    <h2>影像系统数据</h2>
+    <div class="camera-specs">
+      <div class="cam-card"><div class="label">最高主摄像素</div><div class="value">200</div><div class="unit">MP 百万像素</div></div>
+      <div class="cam-card"><div class="label">最大传感器尺寸</div><div class="value">1"</div><div class="unit">英寸底</div></div>
+      <div class="cam-card"><div class="label">最高光学变焦</div><div class="value">10×</div><div class="unit">倍光学</div></div>
+      <div class="cam-card"><div class="label">最高视频规格</div><div class="value">8K</div><div class="unit">@30fps</div></div>
+      <div class="cam-card"><div class="label">最大光圈</div><div class="value">f/1.4</div><div class="unit">大光圈</div></div>
+      <div class="cam-card"><div class="label">防抖方式</div><div class="value">OIS</div><div class="unit">光学防抖</div></div>
+    </div>
+  </div>
+  <div class="section">
+    <h2>代表机型</h2>
+    <div class="grid">
+      <div class="card"><div class="icon">📸</div><div class="name">vivo X200 Ultra</div><div class="spec">蔡司 · 1英寸主摄</div></div>
+      <div class="card"><div class="icon">📸</div><div class="name">小米 15 Ultra</div><div class="spec">徕卡 · 50mm人文焦段</div></div>
+      <div class="card"><div class="icon">📸</div><div class="name">OPPO Find X8 Ultra</div><div class="spec">哈苏 · 双潜望长焦</div></div>
+      <div class="card"><div class="icon">📸</div><div class="name">华为 Pura 70 Ultra</div><div class="spec">可变光圈 · 1英寸</div></div>
+      <div class="card"><div class="icon">📸</div><div class="name">三星 Galaxy S25 Ultra</div><div class="spec">200MP · 10倍光变</div></div>
+      <div class="card"><div class="icon">📸</div><div class="name">iPhone 16 Pro Max</div><div class="spec">tetraprism · 5倍光变</div></div>
+    </div>
+  </div>
+  <div class="section">
+    <h2>品牌联名光学厂商</h2>
+    <table>
+      <thead><tr><th>手机品牌</th><th>光学品牌</th><th>合作亮点</th></tr></thead>
+      <tbody>
+        <tr><td>vivo</td><td>蔡司 ZEISS</td><td>T* 镀膜、蔡司色彩科学</td></tr>
+        <tr><td>小米</td><td>徕卡 Leica</td><td>徕卡真实/徕卡鲜艳双风格</td></tr>
+        <tr><td>OPPO</td><td>哈苏 Hasselblad</td><td>哈苏自然色彩优化</td></tr>
+        <tr><td>华为</td><td>徕卡（已分离）</td><td>现为 XMAGE 自研影像</td></tr>
+        <tr><td>三星</td><td>无第三方</td><td>自研 Isocell 传感器</td></tr>
+        <tr><td>苹果</td><td>无第三方</td><td>Computational Photography</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>
